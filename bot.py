@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from discord.ext import commands
 from database import DatabaseManager
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 
 load_dotenv()  # loads environment variables from .env file
 
@@ -345,7 +346,6 @@ async def progress(ctx, tier: str):
         return
     user_id = str(ctx.author.id)
     history = db_manager.get_all_user_data_history()
-    # Filter for this user and tier
     user_history = [row for row in history if row[0] == user_id]
     if not user_history:
         await ctx.send("❌ No historical data found for you. Upload images to start tracking!")
@@ -362,15 +362,18 @@ async def progress(ctx, tier: str):
     if not waves:
         await ctx.send(f"❌ No wave data found for {tier.upper()}.")
         return
-    # Plot
-    plt.figure(figsize=(8, 4))
-    plt.plot(timestamps, waves, marker='o', linestyle='-', color='b')
-    plt.title(f"{ctx.author.name}'s {tier.upper()} Wave Progress")
-    plt.xlabel("Time")
-    plt.ylabel("Wave")
-    plt.xticks(rotation=30, ha='right', fontsize=8)
+    # Prettier plot
+    plt.style.use("seaborn-v0_8-darkgrid")
+    fig, ax = plt.subplots(figsize=(8, 4))
+    dates = [datetime.fromisoformat(ts) for ts in timestamps]
+    ax.plot(dates, waves, marker='o', linestyle='-', color='#7289da', linewidth=2, markersize=6)
+    ax.set_title(f"{ctx.author.name}'s {tier.upper()} Wave Progress", fontsize=16, fontweight='bold')
+    ax.set_xlabel("Time", fontsize=12)
+    ax.set_ylabel("Wave", fontsize=12)
+    ax.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d\n%H:%M'))
+    fig.autofmt_xdate(rotation=30)
     plt.tight_layout()
-    # Save to buffer
     from io import BytesIO
     buf = BytesIO()
     plt.savefig(buf, format='png')
