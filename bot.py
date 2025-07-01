@@ -138,8 +138,18 @@ def create_canvas_table(tiers):
 async def on_ready():
     print(f"✅ Bot is online as {bot.user}")
 
-@bot.command()
+@bot.command(name="commands", help="List all available commands and their descriptions.")
+async def commands_list(ctx):
+    """Lists all available commands and their descriptions."""
+    description = ""
+    for command in bot.commands:
+        if not command.hidden:
+            description += f"**!{command.name}**: {command.help or command.short_doc or 'No description'}\n"
+    await ctx.send(description)
+
+@bot.command(help="Show your saved tier data (waves and coins for each tier).")
 async def mydata(ctx):
+    """Shows the user their saved tier data (waves and coins for each tier)."""
     data = get_user_data(str(ctx.author.id))
     if data:
         formatted = "Tier | Wave     | Coins\n" + "-----|----------|--------\n"
@@ -153,23 +163,20 @@ async def mydata(ctx):
     else:
         await ctx.send("❌ No data found. Upload an image to start tracking.")
 
-@bot.command()
+@bot.command(help="Show the leaderboard with the highest wave and coins per user.")
 async def leaderboard(ctx):
+    """Shows a leaderboard of all users, displaying the tier with the highest wave and the tier with the highest coins for each user."""
     users = db_manager.get_all_users()
-
     header = ["Player", "Tier(s) with Highest Wave and Coins"]
     lines = [" | ".join(header)]
     lines.append("-" * 70)
-
     for user in users:
         name = user[0]
         tiers = user[1:]
-
         max_wave = -1
         max_coins = -1
         wave_idx = -1
         coins_idx = -1
-
         for i, t in enumerate(tiers):
             if not t:
                 continue
@@ -180,37 +187,31 @@ async def leaderboard(ctx):
             if coins > max_coins:
                 max_coins = coins
                 coins_idx = i
-
         if wave_idx == -1:
             wave_idx = 0
             max_wave = 0
         if coins_idx == -1:
             coins_idx = 0
             max_coins = 0
-
         wave_str = f"T{wave_idx + 1} Wave: {max_wave}"
         coins_str = f"T{coins_idx + 1} Coins: {tiers[coins_idx].split('Coins: ')[1]}" if tiers[coins_idx].count("Coins: ") > 0 else f"T{coins_idx + 1} Coins: 0"
-
         line = f"{name} | Highest wave: {wave_str} ; Highest coins: {coins_str}"
         lines.append(line)
         if len(lines) > 12:
             break
-
     leaderboard_text = "\n".join(lines)
     await ctx.send(f"📊 Leaderboard:\n```\n{leaderboard_text}```")
 
-@bot.command()
+@bot.command(help="Show all users and their highest wave for each tier.")
 async def leaderwaves(ctx):
+    """Shows all users and their highest wave for each tier."""
     users = db_manager.get_all_users()
-
     header = ["Player", "Waves per Tier"]
     lines = [" | ".join(header)]
     lines.append("-" * 70)
-
     for user in users:
         name = user[0]
         tiers = user[1:]
-
         waves_list = []
         for i, t in enumerate(tiers):
             if t:
@@ -224,22 +225,19 @@ async def leaderwaves(ctx):
         lines.append(line)
         if len(lines) > 12:
             break
-
     leaderboard_text = "\n".join(lines)
     await ctx.send(f"📊 Leaderwaves:\n```\n{leaderboard_text}```")
 
-@bot.command()
+@bot.command(help="Show all users and their highest coins for each tier.")
 async def leadercoins(ctx):
+    """Shows all users and their highest coins for each tier."""
     users = db_manager.get_all_users()
-
     header = ["Player", "Coins per Tier"]
     lines = [" | ".join(header)]
     lines.append("-" * 70)
-
     for user in users:
         name = user[0]
         tiers = user[1:]
-
         coins_list = []
         for i, t in enumerate(tiers):
             if t:
@@ -253,12 +251,12 @@ async def leadercoins(ctx):
         lines.append(line)
         if len(lines) > 12:
             break
-
     leaderboard_text = "\n".join(lines)
     await ctx.send(f"📊 Leadercoins:\n```\n{leaderboard_text}```")
 
-@bot.command()
+@bot.command(help="Show the top 5 users for a specific tier, ranked by wave. Usage: !leaderwave t1")
 async def leaderwave(ctx, tier: str):
+    """Shows the top 5 users for a specific tier, ranked by wave."""
     match = re.match(r"t(\d+)", tier.lower())
     if not match:
         await ctx.send("❌ Invalid tier format. Use e.g. `t1`, `t2`, etc.")
@@ -289,8 +287,9 @@ async def leaderwave_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
         await ctx.send("❌ Please specify a tier, e.g. `!leaderwave t1`")
 
-@bot.command()
+@bot.command(help="Show all current and historical user data.")
 async def showdata(ctx):
+    """Shows all current and historical user data."""
     response = ""
     rows = db_manager.get_all_user_data()
     if rows:
