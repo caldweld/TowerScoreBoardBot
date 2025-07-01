@@ -378,6 +378,11 @@ async def progress(ctx, tier: str):
     plt.close()
     await ctx.send(file=discord.File(buf, filename=f'{tier}_progress.png'), content=f"📈 {ctx.author.mention} {tier.upper()} wave progress:")
 
+@progress.error
+async def progress_error(ctx, error):
+    if isinstance(error, commands.MissingRequiredArgument):
+        await ctx.send("❌ Please specify a tier, e.g. `!progress t1`")
+
 @bot.event
 async def on_message(message):
     if message.author.bot:
