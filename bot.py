@@ -230,24 +230,27 @@ async def leaderwaves(ctx):
 
 @bot.command(help="Show all users and their highest coins for each tier.")
 async def leadercoins(ctx):
-    """Shows all users and their highest coins for each tier."""
+    """Shows all users and their highest coins for each tier in a readable table format."""
     users = db_manager.get_all_users()
-    header = ["Player", "Coins per Tier"]
+    # Prepare header
+    header = ["Player"] + [f"T{i+1}" for i in range(18)]
     lines = [" | ".join(header)]
-    lines.append("-" * 70)
+    lines.append("-" * (len(header) * 10))
     for user in users:
         name = user[0]
         tiers = user[1:]
         coins_list = []
-        for i, t in enumerate(tiers):
+        for t in tiers:
             if t:
                 _, coins = parse_wave_coins(t)
                 if coins > 0:
-                    coins_list.append(f"T{i+1}: {coins}")
-        if not coins_list:
-            coins_list.append("No coins recorded")
-        coins_str = " ; ".join(coins_list)
-        line = f"{name} | {coins_str}"
+                    coins_str = f"{coins:,.0f}"
+                else:
+                    coins_str = "-"
+            else:
+                coins_str = "-"
+            coins_list.append(coins_str)
+        line = f"{name} | " + " | ".join(coins_list)
         lines.append(line)
         if len(lines) > 12:
             break
