@@ -273,7 +273,7 @@ async def leadercoins(ctx):
 
 @bot.command(name="leadertier", help="Show the top 5 users for a specific tier, ranked by wave. Usage: !leadertier t1")
 async def leadertier(ctx, tier: str):
-    """Shows the top 5 users for a specific tier, ranked by wave."""
+    """Shows the top 5 users for a specific tier, ranked by wave, including their coin count."""
     match = re.match(r"t(\d+)", tier.lower())
     if not match:
         await ctx.send("❌ Invalid tier format. Use e.g. `t1`, `t2`, etc.")
@@ -287,15 +287,16 @@ async def leadertier(ctx, tier: str):
     for name, tier_str in users:
         if not tier_str:
             continue
-        wave, _ = parse_wave_coins(tier_str)
+        wave, coins = parse_wave_coins(tier_str)
         if wave > 0:
-            results.append((name, wave))
+            results.append((name, wave, coins))
     results.sort(key=lambda x: x[1], reverse=True)
     top5 = results[:5]
     header = f"Top 5 Players for Tier {tier_num} by Wave"
     lines = [header, "-" * len(header)]
-    for name, wave in top5:
-        lines.append(f"{name} Wave: {wave}")
+    for name, wave, coins in top5:
+        coins_str = format_number_suffix(coins)
+        lines.append(f"{name} Wave: {wave} | Coins: {coins_str}")
     leaderboard_text = "\n".join(lines)
     await ctx.send(f"📊 {header}:\n```\n{leaderboard_text}```")
 
