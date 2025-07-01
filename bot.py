@@ -366,7 +366,7 @@ async def progress(ctx, tier: str):
     bg_color = '#23272A'
     grid_color = '#99AAB5'
     line_color = '#5865F2'
-    font_family = 'DejaVu Sans, Verdana, Geneva, sans-serif'
+    font_family = 'DejaVu Sans'
     # Prepare dates (YYYY-MM-DD only)
     dates = [datetime.fromisoformat(ts).strftime('%Y-%m-%d') for ts in timestamps]
     # Plot
@@ -382,6 +382,8 @@ async def progress(ctx, tier: str):
     ax.grid(True, which='both', linestyle='--', linewidth=0.7, alpha=0.7, color=grid_color)
     # Only show x-ticks for actual data points
     ax.set_xticks(dates)
+    # Only show y-ticks for actual wave values
+    ax.set_yticks(waves)
     # Remove top/right spines for modern look
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
