@@ -9,6 +9,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 from discord.ext import commands
 from database import DatabaseManager
+import matplotlib.pyplot as plt
 
 load_dotenv()  # loads environment variables from .env file
 
@@ -330,6 +331,52 @@ async def showdata(ctx):
         response += "No history found.\n"
     for chunk in [response[i:i+1900] for i in range(0, len(response), 1900)]:
         await ctx.send(f"```{chunk}```")
+
+@bot.command(help="Show your wave progress over time for a specific tier. Usage: !progress t1")
+async def progress(ctx, tier: str):
+    """Shows a graph of your wave progress over time for the specified tier."""
+    match = re.match(r"t(\d+)", tier.lower())
+    if not match:
+        await ctx.send("❌ Invalid tier format. Use e.g. `t1`, `t2`, etc.")
+        return
+    tier_num = int(match.group(1))
+    if not (1 <= tier_num <= 18):
+        await ctx.send("❌ Tier number must be between 1 and 18.")
+        return
+    user_id = str(ctx.author.id)
+    history = db_manager.get_all_user_data_history()
+    # Filter for this user and tier
+    user_history = [row for row in history if row[0] == user_id]
+    if not user_history:
+        await ctx.send("❌ No historical data found for you. Upload images to start tracking!")
+        return
+    timestamps = []
+    waves = []
+    for row in user_history:
+        timestamp = row[2]
+        tier_str = row[3 + (tier_num - 1)]
+        wave, _ = parse_wave_coins(tier_str)
+        if wave > 0:
+            timestamps.append(timestamp)
+            waves.append(wave)
+    if not waves:
+        await ctx.send(f"❌ No wave data found for {tier.upper()}.")
+        return
+    # Plot
+    plt.figure(figsize=(8, 4))
+    plt.plot(timestamps, waves, marker='o', linestyle='-', color='b')
+    plt.title(f"{ctx.author.name}'s {tier.upper()} Wave Progress")
+    plt.xlabel("Time")
+    plt.ylabel("Wave")
+    plt.xticks(rotation=30, ha='right', fontsize=8)
+    plt.tight_layout()
+    # Save to buffer
+    from io import BytesIO
+    buf = BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+    plt.close()
+    await ctx.send(file=discord.File(buf, filename=f'{tier}_progress.png'), content=f"📈 {ctx.author.mention} {tier.upper()} wave progress:")
 
 @bot.event
 async def on_message(message):
