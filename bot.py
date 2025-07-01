@@ -1,6 +1,5 @@
 import discord
 import os
-import sqlite3
 import pytesseract
 import requests
 import re

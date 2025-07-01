@@ -1,13 +1,24 @@
 import sqlite3
 from datetime import datetime
+from typing import List, Optional, Tuple, Any
 
 class DatabaseManager:
-    def __init__(self, db_path="data.db"):
+    """
+    Handles all database operations for user data and history.
+    """
+    def __init__(self, db_path: str = "data.db") -> None:
+        """
+        Initialize the database connection and create tables if they do not exist.
+        :param db_path: Path to the SQLite database file.
+        """
         self.conn = sqlite3.connect(db_path)
         self.cursor = self.conn.cursor()
         self._create_tables()
 
-    def _create_tables(self):
+    def _create_tables(self) -> None:
+        """
+        Create the user_data and user_data_history tables if they do not exist.
+        """
         self.cursor.execute("""
         CREATE TABLE IF NOT EXISTS user_data (
             discordid TEXT PRIMARY KEY,
@@ -29,7 +40,13 @@ class DatabaseManager:
         """)
         self.conn.commit()
 
-    def save_user_data(self, discord_id, discord_name, tier_data):
+    def save_user_data(self, discord_id: str, discord_name: str, tier_data: List[str]) -> None:
+        """
+        Save or update a user's tier data and add a historical entry if the data is new.
+        :param discord_id: The Discord user ID.
+        :param discord_name: The Discord username.
+        :param tier_data: List of tier data strings.
+        """
         values = [discord_id, discord_name] + tier_data
         placeholders = ','.join(['?'] * len(values))
         self.cursor.execute(f"""
@@ -65,22 +82,44 @@ class DatabaseManager:
 
         self.conn.commit()
 
-    def get_user_data(self, discord_id):
+    def get_user_data(self, discord_id: str) -> Optional[Tuple[str, ...]]:
+        """
+        Retrieve the tier data for a specific user.
+        :param discord_id: The Discord user ID.
+        :return: Tuple of tier data strings, or None if not found.
+        """
         self.cursor.execute("SELECT T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18 FROM user_data WHERE discordid = ?", (discord_id,))
         return self.cursor.fetchone()
 
-    def get_all_user_data(self):
+    def get_all_user_data(self) -> List[Tuple[Any, ...]]:
+        """
+        Retrieve all current user data records.
+        :return: List of tuples containing all user data.
+        """
         self.cursor.execute("SELECT * FROM user_data")
         return self.cursor.fetchall()
 
-    def get_all_user_data_history(self):
+    def get_all_user_data_history(self) -> List[Tuple[Any, ...]]:
+        """
+        Retrieve all historical user data records.
+        :return: List of tuples containing all historical user data.
+        """
         self.cursor.execute("SELECT * FROM user_data_history")
         return self.cursor.fetchall()
 
-    def get_all_users(self):
+    def get_all_users(self) -> List[Tuple[Any, ...]]:
+        """
+        Retrieve all users and their tier data.
+        :return: List of tuples with username and tier data.
+        """
         self.cursor.execute("SELECT discordname, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18 FROM user_data")
         return self.cursor.fetchall()
 
-    def get_tier_for_all_users(self, tier_num):
+    def get_tier_for_all_users(self, tier_num: int) -> List[Tuple[str, Optional[str]]]:
+        """
+        Retrieve the specified tier data for all users.
+        :param tier_num: The tier number (1-18).
+        :return: List of tuples with username and the specified tier data.
+        """
         self.cursor.execute(f"SELECT discordname, T{tier_num} FROM user_data")
         return self.cursor.fetchall() 
