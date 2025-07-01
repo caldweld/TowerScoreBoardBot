@@ -362,21 +362,38 @@ async def progress(ctx, tier: str):
     if not waves:
         await ctx.send(f"❌ No wave data found for {tier.upper()}.")
         return
-    # Prettier plot
-    plt.style.use("seaborn-v0_8-darkgrid")
-    fig, ax = plt.subplots(figsize=(8, 4))
-    dates = [datetime.fromisoformat(ts) for ts in timestamps]
-    ax.plot(dates, waves, marker='o', linestyle='-', color='#7289da', linewidth=2, markersize=6)
-    ax.set_title(f"{ctx.author.name}'s {tier.upper()} Wave Progress", fontsize=16, fontweight='bold')
-    ax.set_xlabel("Time", fontsize=12)
-    ax.set_ylabel("Wave", fontsize=12)
-    ax.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)
-    ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d\n%H:%M'))
-    fig.autofmt_xdate(rotation=30)
+    # Discord color palette
+    bg_color = '#23272A'
+    grid_color = '#99AAB5'
+    line_color = '#5865F2'
+    font_family = 'DejaVu Sans, Verdana, Geneva, sans-serif'
+    # Prepare dates (YYYY-MM-DD only)
+    dates = [datetime.fromisoformat(ts).strftime('%Y-%m-%d') for ts in timestamps]
+    # Plot
+    plt.style.use('default')
+    fig, ax = plt.subplots(figsize=(8, 4), facecolor=bg_color)
+    ax.set_facecolor(bg_color)
+    ax.plot(dates, waves, marker='o', linestyle='-', color=line_color, linewidth=2, markersize=8)
+    ax.set_title(f"{ctx.author.name}'s {tier.upper()} Wave Progress", fontsize=16, fontweight='bold', color=grid_color, fontname=font_family)
+    ax.set_xlabel("Date", fontsize=12, color=grid_color, fontname=font_family)
+    ax.set_ylabel("Wave", fontsize=12, color=grid_color, fontname=font_family)
+    ax.tick_params(axis='x', colors=grid_color, labelsize=10, labelrotation=30)
+    ax.tick_params(axis='y', colors=grid_color, labelsize=10)
+    ax.grid(True, which='both', linestyle='--', linewidth=0.7, alpha=0.7, color=grid_color)
+    # Only show x-ticks for actual data points
+    ax.set_xticks(dates)
+    # Remove top/right spines for modern look
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['bottom'].set_color(grid_color)
+    ax.spines['left'].set_color(grid_color)
+    # Set font for all labels
+    for label in (ax.get_xticklabels() + ax.get_yticklabels()):
+        label.set_fontname(font_family)
     plt.tight_layout()
     from io import BytesIO
     buf = BytesIO()
-    plt.savefig(buf, format='png')
+    plt.savefig(buf, format='png', facecolor=fig.get_facecolor())
     buf.seek(0)
     plt.close()
     await ctx.send(file=discord.File(buf, filename=f'{tier}_progress.png'), content=f"📈 {ctx.author.mention} {tier.upper()} wave progress:")
