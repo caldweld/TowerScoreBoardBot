@@ -228,29 +228,43 @@ async def leaderwaves(ctx):
     leaderboard_text = "\n".join(lines)
     await ctx.send(f"📊 Leaderwaves:\n```\n{leaderboard_text}```")
 
+def format_number_suffix(num: float) -> str:
+    """Format a number with a suffix (K, M, B, T, Q) and one decimal if needed."""
+    abs_num = abs(num)
+    if abs_num >= 1_000_000_000_000_000:
+        return f"{num/1_000_000_000_000_000:.2f}Q".rstrip('0').rstrip('.')
+    elif abs_num >= 1_000_000_000_000:
+        return f"{num/1_000_000_000_000:.2f}T".rstrip('0').rstrip('.')
+    elif abs_num >= 1_000_000_000:
+        return f"{num/1_000_000_000:.2f}B".rstrip('0').rstrip('.')
+    elif abs_num >= 1_000_000:
+        return f"{num/1_000_000:.2f}M".rstrip('0').rstrip('.')
+    elif abs_num >= 1_000:
+        return f"{num/1_000:.2f}K".rstrip('0').rstrip('.')
+    else:
+        return str(int(num))
+
 @bot.command(help="Show all users and their highest coins for each tier.")
 async def leadercoins(ctx):
-    """Shows all users and their highest coins for each tier in a readable table format."""
+    """Shows all users and their highest coins for each tier in a readable, suffixed format."""
     users = db_manager.get_all_users()
-    # Prepare header
-    header = ["Player"] + [f"T{i+1}" for i in range(18)]
+    header = ["Player", "Coins per Tier"]
     lines = [" | ".join(header)]
-    lines.append("-" * (len(header) * 10))
+    lines.append("-" * 70)
     for user in users:
         name = user[0]
         tiers = user[1:]
         coins_list = []
-        for t in tiers:
+        for i, t in enumerate(tiers):
             if t:
                 _, coins = parse_wave_coins(t)
                 if coins > 0:
-                    coins_str = f"{coins:,.0f}"
-                else:
-                    coins_str = "-"
-            else:
-                coins_str = "-"
-            coins_list.append(coins_str)
-        line = f"{name} | " + " | ".join(coins_list)
+                    coins_str = format_number_suffix(coins)
+                    coins_list.append(f"T{i+1}: {coins_str}")
+        if not coins_list:
+            coins_list.append("No coins recorded")
+        coins_str = " ; ".join(coins_list)
+        line = f"{name} | {coins_str}"
         lines.append(line)
         if len(lines) > 12:
             break
