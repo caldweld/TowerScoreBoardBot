@@ -271,8 +271,8 @@ async def leadercoins(ctx):
     leaderboard_text = "\n".join(lines)
     await ctx.send(f"📊 Leadercoins:\n```\n{leaderboard_text}```")
 
-@bot.command(help="Show the top 5 users for a specific tier, ranked by wave. Usage: !leaderwave t1")
-async def leaderwave(ctx, tier: str):
+@bot.command(name="leadertier", help="Show the top 5 users for a specific tier, ranked by wave. Usage: !leadertier t1")
+async def leadertier(ctx, tier: str):
     """Shows the top 5 users for a specific tier, ranked by wave."""
     match = re.match(r"t(\d+)", tier.lower())
     if not match:
@@ -299,10 +299,10 @@ async def leaderwave(ctx, tier: str):
     leaderboard_text = "\n".join(lines)
     await ctx.send(f"📊 {header}:\n```\n{leaderboard_text}```")
 
-@leaderwave.error
-async def leaderwave_error(ctx, error):
+@leadertier.error
+async def leadertier_error(ctx, error):
     if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send("❌ Please specify a tier, e.g. `!leaderwave t1`")
+        await ctx.send("❌ Please specify a tier, e.g. `!leadertier t1`")
 
 @bot.command(help="Show all current and historical user data.")
 async def showdata(ctx):
