@@ -1,2 +1,2 @@
-cd discord/bot/TowerScoreBoardBot/dashboard-frontend
+cd discord/bot/TowerScoreBoardBot/dashboard-frontend/
 npm run dev
