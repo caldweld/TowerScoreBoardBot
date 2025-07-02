@@ -308,9 +308,11 @@ async def leadertier_error(ctx, error):
         await ctx.send("❌ Please specify a tier, e.g. `!leadertier t1`")
 
 @bot.command(help="Show all current and historical user data.")
-@commands.has_permissions(administrator=True)
 async def showdata(ctx):
-    """Shows all current and historical user data. (Admins only)"""
+    """Shows all current and historical user data. (Bot Admins only)"""
+    if not db_manager.is_bot_admin(str(ctx.author.id)):
+        await ctx.send("❌ You do not have permission to use this command.")
+        return
     response = ""
     rows = db_manager.get_all_user_data()
     if rows:
@@ -438,6 +440,48 @@ async def on_message(message):
                         content=f"✅ Data saved for <@{message.author.id}>!"
                     )
     await bot.process_commands(message)
+
+@bot.command(help="Add a user to the bot admin list. Usage: !addbotadmin @user")
+@commands.has_permissions(administrator=True)
+async def addbotadmin(ctx, user: discord.Member):
+    db_manager.add_bot_admin(str(user.id))
+    await ctx.send(f"✅ {user.mention} has been added as a bot admin.")
+
+@bot.command(help="Remove a user from the bot admin list. Usage: !removebotadmin @user")
+@commands.has_permissions(administrator=True)
+async def removebotadmin(ctx, user: discord.Member):
+    db_manager.remove_bot_admin(str(user.id))
+    await ctx.send(f"✅ {user.mention} has been removed from the bot admin list.")
+
+@bot.command(help="List all bot admins.")
+@commands.has_permissions(administrator=True)
+async def listbotadmins(ctx):
+    admin_ids = db_manager.get_all_bot_admins()
+    if not admin_ids:
+        await ctx.send("No bot admins set.")
+        return
+    admin_mentions = []
+    for admin_id in admin_ids:
+        user = await bot.fetch_user(int(admin_id))
+        admin_mentions.append(user.mention if user else f"ID: {admin_id}")
+    await ctx.send("**Bot Admins:**\n" + "\n".join(admin_mentions))
+
+# Debug commands for caldweld only
+@bot.command(help="[Debug] Add yourself as a bot admin.")
+async def debugaddme(ctx):
+    if str(ctx.author.name).lower() != 'caldweld':
+        await ctx.send("❌ You are not authorized to use this command.")
+        return
+    db_manager.add_bot_admin(str(ctx.author.id))
+    await ctx.send(f"✅ {ctx.author.mention} added as a bot admin (debug mode).")
+
+@bot.command(help="[Debug] Remove yourself from the bot admin list.")
+async def debugremoveme(ctx):
+    if str(ctx.author.name).lower() != 'caldweld':
+        await ctx.send("❌ You are not authorized to use this command.")
+        return
+    db_manager.remove_bot_admin(str(ctx.author.id))
+    await ctx.send(f"✅ {ctx.author.mention} removed from bot admin list (debug mode).")
 
 # Replace with your bot token
 

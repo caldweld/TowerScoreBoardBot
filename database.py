@@ -4,7 +4,7 @@ from typing import List, Optional, Tuple, Any
 
 class DatabaseManager:
     """
-    Handles all database operations for user data and history.
+    Handles all database operations for user data, history, and bot admin permissions.
     """
     def __init__(self, db_path: str = "data.db") -> None:
         """
@@ -17,7 +17,7 @@ class DatabaseManager:
 
     def _create_tables(self) -> None:
         """
-        Create the user_data and user_data_history tables if they do not exist.
+        Create the user_data, user_data_history, and bot_admins tables if they do not exist.
         """
         self.cursor.execute("""
         CREATE TABLE IF NOT EXISTS user_data (
@@ -36,6 +36,11 @@ class DatabaseManager:
             T1 TEXT, T2 TEXT, T3 TEXT, T4 TEXT, T5 TEXT, T6 TEXT,
             T7 TEXT, T8 TEXT, T9 TEXT, T10 TEXT, T11 TEXT, T12 TEXT,
             T13 TEXT, T14 TEXT, T15 TEXT, T16 TEXT, T17 TEXT, T18 TEXT
+        )
+        """)
+        self.cursor.execute("""
+        CREATE TABLE IF NOT EXISTS bot_admins (
+            discordid TEXT PRIMARY KEY
         )
         """)
         self.conn.commit()
@@ -122,4 +127,24 @@ class DatabaseManager:
         :return: List of tuples with username and the specified tier data.
         """
         self.cursor.execute(f"SELECT discordname, T{tier_num} FROM user_data")
-        return self.cursor.fetchall() 
+        return self.cursor.fetchall()
+
+    def add_bot_admin(self, discord_id: str) -> None:
+        """Add a user to the bot admins list."""
+        self.cursor.execute("INSERT OR IGNORE INTO bot_admins (discordid) VALUES (?)", (discord_id,))
+        self.conn.commit()
+
+    def remove_bot_admin(self, discord_id: str) -> None:
+        """Remove a user from the bot admins list."""
+        self.cursor.execute("DELETE FROM bot_admins WHERE discordid = ?", (discord_id,))
+        self.conn.commit()
+
+    def is_bot_admin(self, discord_id: str) -> bool:
+        """Check if a user is a bot admin."""
+        self.cursor.execute("SELECT 1 FROM bot_admins WHERE discordid = ?", (discord_id,))
+        return self.cursor.fetchone() is not None
+
+    def get_all_bot_admins(self) -> List[str]:
+        """Get a list of all bot admin Discord IDs."""
+        self.cursor.execute("SELECT discordid FROM bot_admins")
+        return [row[0] for row in self.cursor.fetchall()] 
