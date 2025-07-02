@@ -308,8 +308,9 @@ async def leadertier_error(ctx, error):
         await ctx.send("❌ Please specify a tier, e.g. `!leadertier t1`")
 
 @bot.command(help="Show all current and historical user data.")
+@commands.has_permissions(administrator=True)
 async def showdata(ctx):
-    """Shows all current and historical user data."""
+    """Shows all current and historical user data. (Admins only)"""
     response = ""
     rows = db_manager.get_all_user_data()
     if rows:
@@ -332,6 +333,12 @@ async def showdata(ctx):
         response += "No history found.\n"
     for chunk in [response[i:i+1900] for i in range(0, len(response), 1900)]:
         await ctx.send(f"```{chunk}```")
+showdata.hidden = True
+
+@showdata.error
+async def showdata_error(ctx, error):
+    if isinstance(error, commands.MissingPermissions):
+        await ctx.send("❌ You do not have permission to use this command.")
 
 @bot.command(help="Show your wave progress over time for a specific tier. Usage: !progress t1")
 async def progress(ctx, tier: str):
