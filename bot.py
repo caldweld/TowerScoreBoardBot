@@ -33,9 +33,7 @@ def extract_tiers(text):
     lines = text.splitlines()
     tier_pattern = re.compile(r"Tier\s*(\d+)\s+(\d+)\s+([\d.,]+[KMBTQ]?)", re.IGNORECASE)
 
-    print("\n--- OCR Output Debug ---")
-    print(text)
-    print("------------------------\n")
+
 
     for line in lines:
         match = tier_pattern.search(line)
