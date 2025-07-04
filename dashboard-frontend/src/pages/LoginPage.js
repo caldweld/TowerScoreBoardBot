@@ -2,7 +2,7 @@ import React from 'react';
 
 export default function LoginPage() {
   const handleLogin = () => {
-    window.location.href = 'http://<YOUR_EC2_PUBLIC_IP>:8000/api/auth/login';
+    window.location.href = 'http://13.239.95.169:8000/api/auth/login';
   };
 
   return (
