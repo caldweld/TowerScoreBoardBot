@@ -19,6 +19,7 @@ class DatabaseManager:
         """
         Create the user_data, user_data_history, and bot_admins tables if they do not exist.
         """
+        
         self.cursor.execute("""
         CREATE TABLE IF NOT EXISTS user_data (
             discordid TEXT PRIMARY KEY,
