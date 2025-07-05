@@ -1,0 +1,57 @@
+from sqlalchemy import Column, String, Integer, DateTime
+from sqlalchemy.orm import declarative_base
+from sqlalchemy.sql import func
+
+Base = declarative_base()
+
+class UserData(Base):
+    __tablename__ = 'user_data'
+    discordid = Column(String, primary_key=True)
+    discordname = Column(String)
+    T1 = Column(String)
+    T2 = Column(String)
+    T3 = Column(String)
+    T4 = Column(String)
+    T5 = Column(String)
+    T6 = Column(String)
+    T7 = Column(String)
+    T8 = Column(String)
+    T9 = Column(String)
+    T10 = Column(String)
+    T11 = Column(String)
+    T12 = Column(String)
+    T13 = Column(String)
+    T14 = Column(String)
+    T15 = Column(String)
+    T16 = Column(String)
+    T17 = Column(String)
+    T18 = Column(String)
+
+class UserDataHistory(Base):
+    __tablename__ = 'user_data_history'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    discordid = Column(String)
+    discordname = Column(String)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    T1 = Column(String)
+    T2 = Column(String)
+    T3 = Column(String)
+    T4 = Column(String)
+    T5 = Column(String)
+    T6 = Column(String)
+    T7 = Column(String)
+    T8 = Column(String)
+    T9 = Column(String)
+    T10 = Column(String)
+    T11 = Column(String)
+    T12 = Column(String)
+    T13 = Column(String)
+    T14 = Column(String)
+    T15 = Column(String)
+    T16 = Column(String)
+    T17 = Column(String)
+    T18 = Column(String)
+
+class BotAdmin(Base):
+    __tablename__ = 'bot_admins'
+    discordid = Column(String, primary_key=True) 
