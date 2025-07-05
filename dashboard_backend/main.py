@@ -7,8 +7,8 @@ import requests
 from urllib.parse import urlencode
 from itsdangerous import URLSafeSerializer
 from sqlalchemy.orm import Session
-from database import get_db
-from models import UserData, UserDataHistory, BotAdmin
+from dashboard_backend.database import get_db
+from dashboard_backend.models import UserData, UserDataHistory, BotAdmin
 import re
 
 load_dotenv()
