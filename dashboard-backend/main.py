@@ -76,7 +76,7 @@ def callback(code: str, response: Response):
 
     # Set session cookie
     session_token = create_session(user_id)
-    response = RedirectResponse(url="http://13.239.95.169:5173/dashboard")  # Redirect to your frontend dashboard
+    response = RedirectResponse(url="http://13.239.95.169:3000/dashboard")  # Redirect to your frontend dashboard
     response.set_cookie("session", session_token, httponly=True, samesite="lax")
     return response
 
