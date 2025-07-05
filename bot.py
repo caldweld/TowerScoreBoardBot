@@ -32,17 +32,51 @@ def get_db_session():
 def extract_tiers(text):
     tier_data = ["Wave: 0 Coins: 0"] * 18
     lines = text.splitlines()
-    tier_pattern = re.compile(r"Tier\s*(\d+)\s+(\d+)\s+([\d.,]+[KMBTQ]?)", re.IGNORECASE)
+    
+    print(f"[DEBUG] Full OCR text:\n{text}")
+    
+    # Multiple patterns to handle different OCR outputs
+    patterns = [
+        # Pattern 1: "Tier X Y Z" where Y=wave, Z=coins
+        re.compile(r"Tier\s*(\d+)\s+(\d+)\s+([\d.,]+[KMBTQ]?)", re.IGNORECASE),
+        # Pattern 2: "Tier X Z" where Z=coins (no wave, assume 0)
+        re.compile(r"Tier\s*(\d+)\s+([\d.,]+[KMBTQ]?)", re.IGNORECASE),
+        # Pattern 3: "Tier X" (no data, assume 0)
+        re.compile(r"Tier\s*(\d+)", re.IGNORECASE)
+    ]
 
     for line in lines:
-        match = tier_pattern.search(line)
-        if match:
-            tier = int(match.group(1))
-            wave = match.group(2).strip()
-            coins = match.group(3).strip()
-            if 1 <= tier <= 18:
-                tier_data[tier - 1] = f"Wave: {wave} Coins: {coins}"
-        elif line.lower().startswith("tier"):
+        line = line.strip()
+        if not line.lower().startswith("tier"):
+            continue
+            
+        print(f"[DEBUG] Processing line: '{line}'")
+        matched = False
+        for i, pattern in enumerate(patterns):
+            match = pattern.search(line)
+            if match:
+                print(f"[DEBUG] Matched pattern {i+1}: {match.groups()}")
+                tier = int(match.group(1))
+                if 1 <= tier <= 18:
+                    if len(match.groups()) == 3:
+                        # Pattern 1: Tier X Y Z
+                        wave = match.group(2).strip()
+                        coins = match.group(3).strip()
+                        tier_data[tier - 1] = f"Wave: {wave} Coins: {coins}"
+                        print(f"[DEBUG] Set tier {tier} to Wave: {wave} Coins: {coins}")
+                    elif len(match.groups()) == 2:
+                        # Pattern 2: Tier X Z (no wave)
+                        coins = match.group(2).strip()
+                        tier_data[tier - 1] = f"Wave: 0 Coins: {coins}"
+                        print(f"[DEBUG] Set tier {tier} to Wave: 0 Coins: {coins}")
+                    else:
+                        # Pattern 3: Tier X (no data)
+                        tier_data[tier - 1] = f"Wave: 0 Coins: 0"
+                        print(f"[DEBUG] Set tier {tier} to Wave: 0 Coins: 0")
+                    matched = True
+                    break
+        
+        if not matched and line.lower().startswith("tier"):
             print(f"[Skipped line]: {line}")
 
     return tier_data
