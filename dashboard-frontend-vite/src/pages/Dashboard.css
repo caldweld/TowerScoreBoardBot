@@ -103,9 +103,15 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
 }
 
 /* Overview Section */
+.overview-section {
+  width: 100%;
+  max-width: 1200px;
+}
+
 .overview-section h2 {
   margin-bottom: 2rem;
   font-size: 1.8rem;
@@ -154,6 +160,11 @@
 }
 
 /* Leaderboard Section */
+.leaderboard-section {
+  width: 100%;
+  max-width: 1200px;
+}
+
 .leaderboard-section h2 {
   margin-bottom: 2rem;
   font-size: 1.8rem;
@@ -197,6 +208,7 @@
   border-radius: 8px;
   padding: 2rem;
   color: #b9bbbe;
+  width: 100%;
 }
 
 .leaderboard-table {
@@ -298,6 +310,11 @@
 }
 
 /* Admin Section */
+.admin-section {
+  width: 100%;
+  max-width: 1200px;
+}
+
 .admin-section h2 {
   margin-bottom: 2rem;
   font-size: 1.8rem;
@@ -412,6 +429,11 @@
 }
 
 /* Data Section */
+.data-section {
+  width: 100%;
+  max-width: 1200px;
+}
+
 .data-section h2 {
   margin-bottom: 2rem;
   font-size: 1.8rem;
