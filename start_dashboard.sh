@@ -19,3 +19,5 @@ cd /home/ubuntu/discord/bot/TowerScoreBoardBot/
 screen -dmS bot python3 main.py
 
 echo "Backend and frontend started in screen sessions 'backend' and 'frontend'."
+
+#chmod +x start_dashboard.sh
