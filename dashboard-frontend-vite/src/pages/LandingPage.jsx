@@ -1,7 +1,10 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 
 export default function LandingPage() {
+  const handleLogin = () => {
+    window.location.href = 'http://13.239.95.169:8000/api/auth/login';
+  };
+
   return (
     <div style={{ 
       minHeight: '100vh',
@@ -79,8 +82,9 @@ export default function LandingPage() {
           flexWrap: 'wrap',
           marginBottom: '20px'
         }}>
-          <Link to="/login" style={{ textDecoration: 'none' }}>
-            <button style={{ 
+          <button 
+            onClick={handleLogin}
+            style={{ 
               fontSize: 'clamp(1rem, 3vw, 1.3rem)', 
               padding: 'clamp(10px, 3vw, 15px) clamp(20px, 5vw, 30px)',
               backgroundColor: '#FFD700',
@@ -101,9 +105,8 @@ export default function LandingPage() {
               e.target.style.transform = 'translateY(0)';
               e.target.style.boxShadow = '0 4px 15px rgba(0,0,0,0.2)';
             }}>
-              Login with Discord
-            </button>
-          </Link>
+            Login with Discord
+          </button>
         </div>
 
         <div style={{ 
