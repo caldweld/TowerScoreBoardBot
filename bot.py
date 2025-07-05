@@ -554,7 +554,8 @@ async def on_message(message):
                     img = Image.open(BytesIO(response.content))
                     
                     # Extract text using OCR
-                    ocr_text = pytesseract.image_to_string(img)
+                    custom_config = r'--oem 3 --psm 6'
+                    ocr_text = pytesseract.image_to_string(img, config=custom_config)
                     
                     # Find the stats line
                     stats_line_index = find_stats_line(ocr_text)
