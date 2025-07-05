@@ -14,10 +14,10 @@ screen -dmS backend uvicorn main:app --host 0.0.0.0 --port 8000
 cd /home/ubuntu/discord/bot/TowerScoreBoardBot/dashboard-frontend-vite
 screen -dmS frontend npm run dev
 
-# Start bot (production static site)
+# Start bot
 cd /home/ubuntu/discord/bot/TowerScoreBoardBot/
-screen -dmS bot python3 main.py
+screen -dmS bot python3 bot.py
 
-echo "Backend and frontend started in screen sessions 'backend' and 'frontend'."
+echo "Backend, frontend, and bot started in screen sessions 'backend', 'frontend', and 'bot'."
 
 #chmod +x start_dashboard.sh
