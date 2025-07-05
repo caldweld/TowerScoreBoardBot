@@ -1,7 +1,7 @@
 import sqlite3
 from sqlalchemy.orm import Session
-from models import UserData, UserDataHistory, BotAdmin, Base
-from database import engine, SessionLocal
+from dashboard_backend.models import UserData, UserDataHistory, BotAdmin, Base
+from dashboard_backend.database import engine, SessionLocal
 
 # Connect to SQLite
 sqlite_conn = sqlite3.connect("data.db")
@@ -37,4 +37,4 @@ for row in sqlite_cur.execute("SELECT * FROM bot_admins"):
 db.commit()
 db.close()
 sqlite_conn.close()
-print("Migration complete!")
+print("Migration complete!") 
