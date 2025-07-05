@@ -1,7 +1,7 @@
 import sqlite3
 from sqlalchemy.orm import Session
-from dashboard_backend.models import UserData, UserDataHistory, BotAdmin, Base
-from dashboard_backend.database import engine, SessionLocal
+from models import UserData, UserDataHistory, BotAdmin, Base
+from database import engine, SessionLocal
 
 # Connect to SQLite
 sqlite_conn = sqlite3.connect("data.db")
