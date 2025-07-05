@@ -12,7 +12,7 @@ screen -dmS backend uvicorn main:app --host 0.0.0.0 --port 8000
 
 # Start frontend (Vite dev server)
 cd /home/ubuntu/discord/bot/TowerScoreBoardBot/dashboard-frontend-vite
-screen -dmS frontend npm run dev -- --host 0.0.0.0 --port 3000
+screen -dmS frontend npm run dev
 
 # Start bot (production static site)
 cd /home/ubuntu/discord/bot/TowerScoreBoardBot/
