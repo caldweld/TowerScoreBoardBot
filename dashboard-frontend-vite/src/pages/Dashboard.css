@@ -1,6 +1,7 @@
 /* Dashboard Styles - Discord-inspired theme */
 .dashboard-container {
   min-height: 100vh;
+  width: 100vw;
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
   color: #ffffff;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -102,14 +103,12 @@
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-start;
+  align-items: center;
 }
 
 /* Overview Section */
 .overview-section {
   width: 100%;
-  max-width: 100%;
 }
 
 .overview-section h2 {
@@ -163,7 +162,6 @@
 /* Leaderboard Section */
 .leaderboard-section {
   width: 100%;
-  max-width: 100%;
 }
 
 .leaderboard-section h2 {
@@ -313,7 +311,6 @@
 /* Admin Section */
 .admin-section {
   width: 100%;
-  max-width: 100%;
 }
 
 .admin-section h2 {
@@ -433,7 +430,6 @@
 /* Data Section */
 .data-section {
   width: 100%;
-  max-width: 100%;
 }
 
 .data-section h2 {
