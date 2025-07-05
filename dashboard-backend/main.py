@@ -6,12 +6,10 @@ from dotenv import load_dotenv
 import requests
 from urllib.parse import urlencode
 from itsdangerous import URLSafeSerializer
-import sys
-import os
-
-# Add the parent directory to the path so we can import the database module
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from database import DatabaseManager
+from sqlalchemy.orm import Session
+from database import get_db
+from models import UserData, UserDataHistory, BotAdmin
+import re
 
 load_dotenv()
 
@@ -23,15 +21,12 @@ SESSION_SECRET = os.getenv("SESSION_SECRET")
 if not SESSION_SECRET:
     raise ValueError("SESSION_SECRET environment variable is required")
 
-# Initialize database manager
-db_manager = DatabaseManager()
-
 app = FastAPI()
 
 # Allow CORS for your frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://13.239.95.169:5173", "http://13.239.95.169:3000"],  # React dev server and EC2
+    allow_origins=["http://localhost:3000", "http://13.239.95.169:5173", "http://13.239.95.169:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -85,7 +80,7 @@ def callback(code: str, response: Response):
 
     # Set session cookie
     session_token = create_session(user_id)
-    response = RedirectResponse(url="http://13.239.95.169:3000/dashboard")  # Redirect to your frontend dashboard
+    response = RedirectResponse(url="http://13.239.95.169:3000/dashboard")
     response.set_cookie("session", session_token, httponly=True, samesite="lax")
     return response
 
@@ -99,6 +94,9 @@ def get_current_user(request: Request):
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid session")
 
+def is_bot_admin(user_id: str, db: Session):
+    return db.query(BotAdmin).filter(BotAdmin.discordid == user_id).first() is not None
+
 @app.get("/api/auth/me")
 def me(request: Request):
     user_id = get_current_user(request)
@@ -110,105 +108,77 @@ def logout(response: Response):
     response.delete_cookie("session")
     return response
 
-# Database API endpoints
 @app.get("/api/users")
-def get_users(request: Request):
-    """Get all users and their tier data (Admin only)"""
+def get_users(request: Request, db: Session = Depends(get_db)):
     user_id = get_current_user(request)
-    if not db_manager.is_bot_admin(user_id):
+    if not is_bot_admin(user_id, db):
         raise HTTPException(status_code=403, detail="Admin access required")
-    
-    users = db_manager.get_all_users()
+    users = db.query(UserData).all()
     return [
         {
-            "discordname": user[0],
-            "tiers": {
-                f"T{i+1}": user[i+1] for i in range(18)
-            }
+            "discordname": user.discordname,
+            "tiers": {f"T{i+1}": getattr(user, f"T{i+1}") for i in range(18)}
         }
         for user in users
     ]
 
 @app.get("/api/users/{discord_id}")
-def get_user_data(discord_id: str, request: Request):
-    """Get tier data for a specific user"""
+def get_user_data(discord_id: str, request: Request, db: Session = Depends(get_db)):
     user_id = get_current_user(request)
-    if not db_manager.is_bot_admin(user_id):
+    if not is_bot_admin(user_id, db):
         raise HTTPException(status_code=403, detail="Admin access required")
-    
-    data = db_manager.get_user_data(discord_id)
-    if not data:
+    user = db.query(UserData).filter(UserData.discordid == discord_id).first()
+    if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
     return {
-        "discord_id": discord_id,
-        "tiers": {
-            f"T{i+1}": data[i] for i in range(18)
-        }
+        "discord_id": user.discordid,
+        "tiers": {f"T{i+1}": getattr(user, f"T{i+1}") for i in range(18)}
     }
 
 @app.get("/api/leaderboard/wave")
-def get_wave_leaderboard(request: Request):
-    """Get leaderboard sorted by highest wave per user"""
+def get_wave_leaderboard(request: Request, db: Session = Depends(get_db)):
     user_id = get_current_user(request)
-    if not db_manager.is_bot_admin(user_id):
+    if not is_bot_admin(user_id, db):
         raise HTTPException(status_code=403, detail="Admin access required")
-    
-    users = db_manager.get_all_users()
+    users = db.query(UserData).all()
     leaderboard = []
-    
     for user in users:
-        username = user[0]
-        tiers = user[1:]
         max_wave = 0
         max_wave_tier = None
-        
-        for i, tier_str in enumerate(tiers):
+        for i in range(18):
+            tier_str = getattr(user, f"T{i+1}")
             if tier_str:
-                # Extract wave number from tier string
-                import re
                 wave_match = re.search(r"Wave:\s*(\d+)", tier_str)
                 if wave_match:
                     wave = int(wave_match.group(1))
                     if wave > max_wave:
                         max_wave = wave
                         max_wave_tier = f"T{i+1}"
-        
         if max_wave > 0:
             leaderboard.append({
-                "username": username,
+                "username": user.discordname,
                 "max_wave": max_wave,
                 "tier": max_wave_tier
             })
-    
-    # Sort by max wave descending
     leaderboard.sort(key=lambda x: x["max_wave"], reverse=True)
     return leaderboard
 
 @app.get("/api/leaderboard/coins")
-def get_coins_leaderboard(request: Request):
-    """Get leaderboard sorted by highest coins per user"""
+def get_coins_leaderboard(request: Request, db: Session = Depends(get_db)):
     user_id = get_current_user(request)
-    if not db_manager.is_bot_admin(user_id):
+    if not is_bot_admin(user_id, db):
         raise HTTPException(status_code=403, detail="Admin access required")
-    
-    users = db_manager.get_all_users()
+    users = db.query(UserData).all()
     leaderboard = []
-    
     for user in users:
-        username = user[0]
-        tiers = user[1:]
         max_coins = 0
         max_coins_tier = None
-        
-        for i, tier_str in enumerate(tiers):
+        for i in range(18):
+            tier_str = getattr(user, f"T{i+1}")
             if tier_str:
-                # Extract coins from tier string
-                import re
                 coins_match = re.search(r"Coins:\s*([\d.,]+[KMBTQ]?)", tier_str)
                 if coins_match:
                     coins_str = coins_match.group(1)
-                    # Convert to numeric value
                     multiplier = 1
                     if coins_str.endswith("K"):
                         multiplier = 1_000
@@ -225,7 +195,6 @@ def get_coins_leaderboard(request: Request):
                     elif coins_str.endswith("Q"):
                         multiplier = 1_000_000_000_000_000
                         coins_str = coins_str[:-1]
-                    
                     try:
                         coins = float(coins_str.replace(",", "")) * multiplier
                         if coins > max_coins:
@@ -233,31 +202,23 @@ def get_coins_leaderboard(request: Request):
                             max_coins_tier = f"T{i+1}"
                     except:
                         pass
-        
         if max_coins > 0:
             leaderboard.append({
-                "username": username,
+                "username": user.discordname,
                 "max_coins": max_coins,
                 "tier": max_coins_tier
             })
-    
-    # Sort by max coins descending
     leaderboard.sort(key=lambda x: x["max_coins"], reverse=True)
     return leaderboard
 
 @app.get("/api/stats/overview")
-def get_stats_overview(request: Request):
-    """Get overview statistics"""
+def get_stats_overview(request: Request, db: Session = Depends(get_db)):
     user_id = get_current_user(request)
-    if not db_manager.is_bot_admin(user_id):
+    if not is_bot_admin(user_id, db):
         raise HTTPException(status_code=403, detail="Admin access required")
-    
-    users = db_manager.get_all_users()
+    users = db.query(UserData).all()
     total_users = len(users)
-    
-    # Count users with data
-    users_with_data = sum(1 for user in users if any(user[i+1] for i in range(18)))
-    
+    users_with_data = sum(1 for user in users if any(getattr(user, f"T{i+1}") for i in range(18)))
     return {
         "total_users": total_users,
         "users_with_data": users_with_data,
@@ -266,32 +227,28 @@ def get_stats_overview(request: Request):
     }
 
 @app.get("/api/admin/bot-admins")
-def get_bot_admins(request: Request):
-    """Get list of bot admins"""
+def get_bot_admins(request: Request, db: Session = Depends(get_db)):
     user_id = get_current_user(request)
-    if not db_manager.is_bot_admin(user_id):
+    if not is_bot_admin(user_id, db):
         raise HTTPException(status_code=403, detail="Admin access required")
-    
-    admin_ids = db_manager.get_all_bot_admins()
+    admin_ids = [admin.discordid for admin in db.query(BotAdmin).all()]
     return {"admin_ids": admin_ids}
 
 @app.post("/api/admin/add-bot-admin")
-def add_bot_admin(discord_id: str, request: Request):
-    """Add a user as bot admin"""
+def add_bot_admin(discord_id: str, request: Request, db: Session = Depends(get_db)):
     user_id = get_current_user(request)
-    if not db_manager.is_bot_admin(user_id):
+    if not is_bot_admin(user_id, db):
         raise HTTPException(status_code=403, detail="Admin access required")
-    
-    db_manager.add_bot_admin(discord_id)
+    db.add(BotAdmin(discordid=discord_id))
+    db.commit()
     return {"message": f"User {discord_id} added as bot admin"}
 
 @app.delete("/api/admin/remove-bot-admin")
-def remove_bot_admin(discord_id: str, request: Request):
-    """Remove a user from bot admins"""
+def remove_bot_admin(discord_id: str, request: Request, db: Session = Depends(get_db)):
     user_id = get_current_user(request)
-    if not db_manager.is_bot_admin(user_id):
+    if not is_bot_admin(user_id, db):
         raise HTTPException(status_code=403, detail="Admin access required")
-    
-    db_manager.remove_bot_admin(discord_id)
+    db.query(BotAdmin).filter(BotAdmin.discordid == discord_id).delete()
+    db.commit()
     return {"message": f"User {discord_id} removed from bot admins"}
 
