@@ -6,7 +6,7 @@ screen -S frontend -X quit 2>/dev/null
 screen -S bot -X quit 2>/dev/null
 
 # Start backend
-cd /home/ubuntu/discord/bot/TowerScoreBoardBot/dashboard-backend
+cd /home/ubuntu/discord/bot/TowerScoreBoardBot/dashboard_backend
 source venv/bin/activate
 screen -dmS backend uvicorn main:app --host 0.0.0.0 --port 8000
 
