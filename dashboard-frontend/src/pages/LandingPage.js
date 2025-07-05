@@ -8,7 +8,7 @@ export default function LandingPage() {
       <Link to="/login">
         <button style={{ fontSize: '1.2em', padding: '0.5em 2em' }}>
           Login with Discord
-          
+        
         </button>
       </Link>
     </div>

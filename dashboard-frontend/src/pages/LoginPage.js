@@ -8,7 +8,7 @@ export default function LoginPage() {
   return (
     <div style={{ textAlign: 'center', marginTop: '10vh' }}>
       <h2>Login to access the dashboard</h2>
-      
+    
       <button onClick={handleLogin} style={{ fontSize: '1.2em', padding: '0.5em 2em' }}>
         Login with Discord
       </button>
