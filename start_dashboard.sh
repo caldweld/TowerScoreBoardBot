@@ -6,9 +6,9 @@ screen -S frontend -X quit 2>/dev/null
 screen -S bot -X quit 2>/dev/null
 
 # Start backend
-cd /home/ubuntu/discord/bot/TowerScoreBoardBot/dashboard_backend
+cd /home/ubuntu/discord/bot/TowerScoreBoardBot
 source venv/bin/activate
-screen -dmS backend uvicorn main:app --host 0.0.0.0 --port 8000
+screen -dmS backend uvicorn dashboard_backend.main:app --host 0.0.0.0 --port 8000
 
 # Start frontend (Vite dev server)
 cd /home/ubuntu/discord/bot/TowerScoreBoardBot/dashboard-frontend-vite
