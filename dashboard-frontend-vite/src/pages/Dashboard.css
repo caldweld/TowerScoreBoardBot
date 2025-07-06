@@ -265,16 +265,16 @@
   grid-template-columns: 80px 1fr 120px 80px;
   gap: 1rem;
   padding: 1rem;
-  background: linear-gradient(145deg, rgba(255, 215, 0, 0.1), rgba(255, 215, 0, 0.05));
+  background: linear-gradient(145deg, rgba(229, 218, 255, 0.1), rgba(229, 218, 255, 0.05));
   border-radius: 10px;
   margin-bottom: 1rem;
   font-weight: 600;
   font-family: 'Orbitron', monospace;
-  color: #ffd700;
+  color: #e5daff;
   align-items: center;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  border: 1px solid rgba(255, 215, 0, 0.2);
+  border: 1px solid rgba(229, 218, 255, 0.2);
 }
 
 .table-row {
@@ -282,7 +282,7 @@
   grid-template-columns: 80px 1fr 120px 80px;
   gap: 1rem;
   padding: 1rem;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid rgba(229, 218, 255, 0.2);
   transition: all 0.3s ease;
   align-items: center;
   border-radius: 8px;
@@ -296,8 +296,8 @@
 .rank {
   font-weight: 700;
   font-family: 'Orbitron', monospace;
-  color: #ffd700;
-  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  color: #e5daff;
+  text-shadow: 0 0 10px rgba(229, 218, 255, 0.5);
 }
 
 .player {
@@ -314,10 +314,10 @@
 }
 
 .tier {
-  color: #ffd700;
+  color: #e5daff;
   font-weight: 600;
   font-family: 'Orbitron', monospace;
-  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+  text-shadow: 0 0 10px rgba(229, 218, 255, 0.5);
 }
 
 /* Recent Users Section */
@@ -348,10 +348,10 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem;
-  background: linear-gradient(145deg, rgba(255, 215, 0, 0.05), rgba(255, 215, 0, 0.02));
+  background: linear-gradient(145deg, rgba(229, 218, 255, 0.05), rgba(229, 218, 255, 0.02));
   border-radius: 10px;
   transition: all 0.3s ease;
-  border: 1px solid rgba(255, 215, 0, 0.1);
+  border: 1px solid rgba(229, 218, 255, 0.1);
 }
 
 .user-item:hover {
@@ -394,8 +394,8 @@
 }
 
 .no-access-message {
-  background: rgba(47, 49, 54, 0.8);
-  border: 1px solid #40444b;
+  background: linear-gradient(145deg, rgba(54, 49, 118, 0.9), rgba(28, 24, 53, 0.9));
+  border: 1px solid #e5daff;
   border-radius: 8px;
   padding: 2rem;
   text-align: center;
@@ -445,9 +445,9 @@
 }
 
 .admin-card:hover {
-  transform: translateY(-2px);
+  transform: scale(0.95);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-  border-color: #5865f2;
+  border-color: #e5daff;
 }
 
 .admin-card h3 {
@@ -479,9 +479,9 @@
 }
 
 .admin-message {
-  background: rgba(43, 181, 129, 0.1);
-  border: 1px solid #43b581;
-  color: #43b581;
+  background: rgba(229, 218, 255, 0.1);
+  border: 1px solid #e5daff;
+  color: #e5daff;
   padding: 1rem;
   border-radius: 6px;
   margin-bottom: 1rem;
@@ -514,13 +514,13 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem;
-  background: rgba(88, 101, 242, 0.05);
+  background: rgba(229, 218, 255, 0.05);
   border-radius: 6px;
 }
 
 .remove-admin-btn {
-  background: linear-gradient(45deg, #ed4245, #f04747);
-  color: white;
+  background: linear-gradient(45deg, #e5daff, #b8a9ff);
+  color: #363176;
   border: none;
   padding: 0.5rem 1rem;
   border-radius: 4px;
@@ -531,8 +531,8 @@
 }
 
 .remove-admin-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(237, 66, 69, 0.3);
+  transform: scale(0.95);
+  box-shadow: 0 4px 12px rgba(229, 218, 255, 0.3);
 }
 
 /* Data Section */
@@ -558,8 +558,8 @@
 }
 
 .data-btn {
-  background: linear-gradient(45deg, #faa61a, #faa61a);
-  color: white;
+  background: linear-gradient(45deg, #e5daff, #b8a9ff);
+  color: #363176;
   border: none;
   padding: 0.75rem 1.5rem;
   border-radius: 6px;
@@ -569,8 +569,8 @@
 }
 
 .data-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(250, 166, 26, 0.3);
+  transform: scale(0.95);
+  box-shadow: 0 4px 12px rgba(229, 218, 255, 0.3);
 }
 
 .data-preview {
@@ -601,8 +601,8 @@
 }
 
 .view-btn {
-  background: linear-gradient(45deg, #5865f2, #7289da);
-  color: white;
+  background: linear-gradient(45deg, #e5daff, #b8a9ff);
+  color: #363176;
   border: none;
   padding: 0.5rem 1rem;
   border-radius: 4px;
@@ -613,8 +613,8 @@
 }
 
 .view-btn:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(88, 101, 242, 0.3);
+  transform: scale(0.95);
+  box-shadow: 0 4px 12px rgba(229, 218, 255, 0.3);
 }
 
 /* Progress Section */
@@ -648,9 +648,9 @@
 }
 
 .tier-select {
-  background: #2c2f33;
-  color: #ffffff;
-  border: 1px solid #40444b;
+  background: #363176;
+  color: #e5daff;
+  border: 1px solid #e5daff;
   padding: 0.5rem 1rem;
   border-radius: 6px;
   font-size: 1rem;
@@ -659,13 +659,13 @@
 }
 
 .tier-select:hover {
-  border-color: #5865f2;
+  border-color: #e5daff;
 }
 
 .tier-select:focus {
   outline: none;
-  border-color: #5865f2;
-  box-shadow: 0 0 0 2px rgba(88, 101, 242, 0.2);
+  border-color: #e5daff;
+  box-shadow: 0 0 0 2px rgba(229, 218, 255, 0.2);
 }
 
 .chart-container {
