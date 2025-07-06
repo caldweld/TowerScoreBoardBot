@@ -72,48 +72,42 @@ export default function Dashboard() {
         console.log('User is not an admin');
       }
 
-      // If user is admin, fetch all admin data
-      if (isAdmin) {
-        const [usersRes, statsRes, waveRes, coinsRes] = await Promise.all([
-          fetch('http://13.239.95.169:8000/api/users', { credentials: 'include' }),
-          fetch('http://13.239.95.169:8000/api/stats/overview', { credentials: 'include' }),
-          fetch('http://13.239.95.169:8000/api/leaderboard/wave', { credentials: 'include' }),
-          fetch('http://13.239.95.169:8000/api/leaderboard/coins', { credentials: 'include' })
-        ]);
+      // Fetch leaderboard and stats data for all users
+      const [waveRes, coinsRes, statsRes] = await Promise.all([
+        fetch('http://13.239.95.169:8000/api/leaderboard/wave', { credentials: 'include' }),
+        fetch('http://13.239.95.169:8000/api/leaderboard/coins', { credentials: 'include' }),
+        fetch('http://13.239.95.169:8000/api/stats/overview', { credentials: 'include' })
+      ]);
 
+      if (waveRes.ok) {
+        const waveData = await waveRes.json();
+        setWaveLeaderboard(waveData);
+      }
+
+      if (coinsRes.ok) {
+        const coinsData = await coinsRes.json();
+        setCoinsLeaderboard(coinsData);
+      }
+
+      if (statsRes.ok) {
+        const statsData = await statsRes.json();
+        setStats(statsData);
+        setSystemStatus({
+          bot: statsData.bot_status,
+          database: statsData.database_status
+        });
+      }
+
+      // If user is admin, fetch additional admin data
+      if (isAdmin) {
+        const usersRes = await fetch('http://13.239.95.169:8000/api/users', { credentials: 'include' });
         if (usersRes.ok) {
           const usersData = await usersRes.json();
           setAllUsers(usersData);
         }
-
-        if (statsRes.ok) {
-          const statsData = await statsRes.json();
-          setStats(statsData);
-          setSystemStatus({
-            bot: 'online',
-            database: 'connected'
-          });
-        }
-
-        if (waveRes.ok) {
-          const waveData = await waveRes.json();
-          setWaveLeaderboard(waveData);
-        }
-
-        if (coinsRes.ok) {
-          const coinsData = await coinsRes.json();
-          setCoinsLeaderboard(coinsData);
-        }
       } else {
-        // For non-admin users, set basic status and empty data
-        setSystemStatus({
-          bot: 'online',
-          database: 'connected'
-        });
+        // For non-admin users, set empty admin data
         setAllUsers([]);
-        setStats({ total_users: 0, users_with_data: 0 });
-        setWaveLeaderboard([]);
-        setCoinsLeaderboard([]);
       }
     } catch (err) {
       console.error('Error fetching data:', err);
@@ -303,68 +297,51 @@ export default function Dashboard() {
         {activeTab === 'overview' && (
           <div className="overview-section">
             <h2>System Overview</h2>
+            <div className="stats-grid">
+              <div className="stat-card">
+                <h3>Total Members</h3>
+                <p>{stats?.total_users || 0}</p>
+              </div>
+              <div className="stat-card">
+                <h3>Bot Status</h3>
+                <p className={`status-${systemStatus.bot === 'online' ? 'online' : 'offline'}`}>
+                  {systemStatus.bot === 'checking' ? 'Checking...' : systemStatus.bot}
+                </p>
+              </div>
+              <div className="stat-card">
+                <h3>Database</h3>
+                <p className={`status-${systemStatus.database === 'connected' ? 'online' : 'offline'}`}>
+                  {systemStatus.database === 'checking' ? 'Checking...' : systemStatus.database}
+                </p>
+              </div>
+              {botAdmins.includes(userData?.user_id) && (
+                <div className="stat-card">
+                  <h3>Users with Data</h3>
+                  <p>{stats?.users_with_data || 0}</p>
+                </div>
+              )}
+            </div>
+            
             {botAdmins.includes(userData?.user_id) ? (
-              <>
-                <div className="stats-grid">
-                  <div className="stat-card">
-                    <h3>Total Users</h3>
-                    <p>{stats?.total_users || 0}</p>
-                  </div>
-                  <div className="stat-card">
-                    <h3>Users with Data</h3>
-                    <p>{stats?.users_with_data || 0}</p>
-                  </div>
-                  <div className="stat-card">
-                    <h3>Bot Status</h3>
-                    <p className={`status-${systemStatus.bot === 'online' ? 'online' : 'offline'}`}>
-                      {systemStatus.bot === 'checking' ? 'Checking...' : systemStatus.bot}
-                    </p>
-                  </div>
-                  <div className="stat-card">
-                    <h3>Database</h3>
-                    <p className={`status-${systemStatus.database === 'connected' ? 'online' : 'offline'}`}>
-                      {systemStatus.database === 'checking' ? 'Checking...' : systemStatus.database}
-                    </p>
-                  </div>
+              <div className="recent-users">
+                <h3>Recent Users</h3>
+                <div className="users-list">
+                  {allUsers.slice(0, 5).map((user, index) => (
+                    <div key={index} className="user-item">
+                      <span className="username">{user.discordname}</span>
+                      <span className="tier-count">
+                        {Object.values(user.tiers).filter(tier => tier && tier !== 'Wave: 0 Coins: 0').length} tiers
+                      </span>
+                    </div>
+                  ))}
                 </div>
-                
-                <div className="recent-users">
-                  <h3>Recent Users</h3>
-                  <div className="users-list">
-                    {allUsers.slice(0, 5).map((user, index) => (
-                      <div key={index} className="user-item">
-                        <span className="username">{user.discordname}</span>
-                        <span className="tier-count">
-                          {Object.values(user.tiers).filter(tier => tier && tier !== 'Wave: 0 Coins: 0').length} tiers
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </>
+              </div>
             ) : (
-              <>
-                <div className="stats-grid">
-                  <div className="stat-card">
-                    <h3>Bot Status</h3>
-                    <p className={`status-${systemStatus.bot === 'online' ? 'online' : 'offline'}`}>
-                      {systemStatus.bot === 'checking' ? 'Checking...' : systemStatus.bot}
-                    </p>
-                  </div>
-                  <div className="stat-card">
-                    <h3>Database</h3>
-                    <p className={`status-${systemStatus.database === 'connected' ? 'online' : 'offline'}`}>
-                      {systemStatus.database === 'checking' ? 'Checking...' : systemStatus.database}
-                    </p>
-                  </div>
-                </div>
-                
-                <div className="welcome-message">
-                  <h3>Welcome to The Tower Scoreboard!</h3>
-                  <p>Track your progress across all tiers and compare with other players.</p>
-                  <p>Use the Progress Charts tab to view your personal statistics.</p>
-                </div>
-              </>
+              <div className="welcome-message">
+                <h3>Welcome to The Tower Scoreboard!</h3>
+                <p>Track your progress across all tiers and compare with other players.</p>
+                <p>Use the Progress Charts tab to view your personal statistics.</p>
+              </div>
             )}
           </div>
         )}
@@ -387,49 +364,39 @@ export default function Dashboard() {
               </button>
             </div>
             <div className="leaderboard-content">
-              {botAdmins.includes(userData?.user_id) ? (
-                <>
-                  {leaderboardType === 'wave' ? (
-                    <div className="leaderboard-table">
-                      <div className="table-header">
-                        <span>Rank</span>
-                        <span>Player</span>
-                        <span>Highest Wave</span>
-                        <span>Tier</span>
-                      </div>
-                      {waveLeaderboard.slice(0, 10).map((entry, index) => (
-                        <div key={index} className="table-row">
-                          <span className="rank">#{index + 1}</span>
-                          <span className="player">{entry.username}</span>
-                          <span className="wave">{entry.max_wave}</span>
-                          <span className="tier">{entry.tier}</span>
-                        </div>
-                      ))}
+              {leaderboardType === 'wave' ? (
+                <div className="leaderboard-table">
+                  <div className="table-header">
+                    <span>Rank</span>
+                    <span>Player</span>
+                    <span>Highest Wave</span>
+                    <span>Tier</span>
+                  </div>
+                  {waveLeaderboard.slice(0, 10).map((entry, index) => (
+                    <div key={index} className="table-row">
+                      <span className="rank">#{index + 1}</span>
+                      <span className="player">{entry.username}</span>
+                      <span className="wave">{entry.max_wave}</span>
+                      <span className="tier">{entry.tier}</span>
                     </div>
-                  ) : (
-                    <div className="leaderboard-table">
-                      <div className="table-header">
-                        <span>Rank</span>
-                        <span>Player</span>
-                        <span>Highest Coins</span>
-                        <span>Tier</span>
-                      </div>
-                      {coinsLeaderboard.slice(0, 10).map((entry, index) => (
-                        <div key={index} className="table-row">
-                          <span className="rank">#{index + 1}</span>
-                          <span className="player">{entry.username}</span>
-                          <span className="coins">{formatNumber(entry.max_coins)}</span>
-                          <span className="tier">{entry.tier}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
+                  ))}
+                </div>
               ) : (
-                <div className="no-access-message">
-                  <h3>Leaderboard Access</h3>
-                  <p>Leaderboard data is only available to bot administrators.</p>
-                  <p>Contact a bot admin if you need access to this information.</p>
+                <div className="leaderboard-table">
+                  <div className="table-header">
+                    <span>Rank</span>
+                    <span>Player</span>
+                    <span>Highest Coins</span>
+                    <span>Tier</span>
+                  </div>
+                  {coinsLeaderboard.slice(0, 10).map((entry, index) => (
+                    <div key={index} className="table-row">
+                      <span className="rank">#{index + 1}</span>
+                      <span className="player">{entry.username}</span>
+                      <span className="coins">{formatNumber(entry.max_coins)}</span>
+                      <span className="tier">{entry.tier}</span>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

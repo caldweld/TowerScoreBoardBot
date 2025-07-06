@@ -143,8 +143,6 @@ def get_user_data(discord_id: str, request: Request, db: Session = Depends(get_d
 @app.get("/api/leaderboard/wave")
 def get_wave_leaderboard(request: Request, db: Session = Depends(get_db)):
     user_id = get_current_user(request)
-    if not is_bot_admin(user_id, db):
-        raise HTTPException(status_code=403, detail="Admin access required")
     users = db.query(UserData).all()
     leaderboard = []
     for user in users:
@@ -171,8 +169,6 @@ def get_wave_leaderboard(request: Request, db: Session = Depends(get_db)):
 @app.get("/api/leaderboard/coins")
 def get_coins_leaderboard(request: Request, db: Session = Depends(get_db)):
     user_id = get_current_user(request)
-    if not is_bot_admin(user_id, db):
-        raise HTTPException(status_code=403, detail="Admin access required")
     users = db.query(UserData).all()
     leaderboard = []
     for user in users:
@@ -219,8 +215,6 @@ def get_coins_leaderboard(request: Request, db: Session = Depends(get_db)):
 @app.get("/api/stats/overview")
 def get_stats_overview(request: Request, db: Session = Depends(get_db)):
     user_id = get_current_user(request)
-    if not is_bot_admin(user_id, db):
-        raise HTTPException(status_code=403, detail="Admin access required")
     users = db.query(UserData).all()
     total_users = len(users)
     users_with_data = sum(1 for user in users if any(getattr(user, f"T{i+1}") for i in range(18)))
