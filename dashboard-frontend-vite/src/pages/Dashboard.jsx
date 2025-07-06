@@ -67,9 +67,14 @@ export default function Dashboard() {
           const adminsData = await adminsRes.json();
           setBotAdmins(adminsData.admin_ids);
           isAdmin = adminsData.admin_ids.includes(userData?.user_id);
+        } else {
+          // 403 or other error means user is not an admin
+          console.log('User is not an admin (403 response)');
+          setBotAdmins([]);
         }
       } catch (err) {
-        console.log('User is not an admin');
+        console.log('User is not an admin (network error)');
+        setBotAdmins([]);
       }
 
       // Fetch leaderboard and stats data for all users
