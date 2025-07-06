@@ -212,6 +212,73 @@ def get_coins_leaderboard(request: Request, db: Session = Depends(get_db)):
     leaderboard.sort(key=lambda x: x["max_coins"], reverse=True)
     return leaderboard
 
+@app.get("/api/leaderboard/tier/{tier_num}")
+def get_tier_leaderboard(tier_num: int, request: Request, db: Session = Depends(get_db)):
+    user_id = get_current_user(request)
+    if not (1 <= tier_num <= 18):
+        raise HTTPException(status_code=400, detail="Tier must be between 1 and 18")
+    
+    users = db.query(UserData).all()
+    leaderboard = []
+    
+    for user in users:
+        tier_str = getattr(user, f"T{tier_num}")
+        if tier_str and tier_str != "Wave: 0 Coins: 0":
+            # Extract wave and coins from tier string
+            wave_match = re.search(r"Wave:\s*(\d+)", tier_str)
+            coins_match = re.search(r"Coins:\s*([\d.,]+[KMBTQ]?)", tier_str)
+            
+            wave = int(wave_match.group(1)) if wave_match else 0
+            coins = 0
+            if coins_match:
+                coins_str = coins_match.group(1)
+                multiplier = 1
+                if coins_str.endswith("K"):
+                    multiplier = 1_000
+                    coins_str = coins_str[:-1]
+                elif coins_str.endswith("M"):
+                    multiplier = 1_000_000
+                    coins_str = coins_str[:-1]
+                elif coins_str.endswith("B"):
+                    multiplier = 1_000_000_000
+                    coins_str = coins_str[:-1]
+                elif coins_str.endswith("T"):
+                    multiplier = 1_000_000_000_000
+                    coins_str = coins_str[:-1]
+                elif coins_str.endswith("Q"):
+                    multiplier = 1_000_000_000_000_000
+                    coins_str = coins_str[:-1]
+                try:
+                    coins = float(coins_str.replace(",", "")) * multiplier
+                except:
+                    coins = 0
+            
+            if wave > 0 or coins > 0:
+                leaderboard.append({
+                    "username": user.discordname,
+                    "wave": wave,
+                    "coins": coins,
+                    "coins_formatted": formatNumber(coins) if coins > 0 else "0"
+                })
+    
+    # Sort by wave first, then by coins as tiebreaker
+    leaderboard.sort(key=lambda x: (x["wave"], x["coins"]), reverse=True)
+    return leaderboard
+
+def formatNumber(num):
+    if num >= 1e15:
+        return f"{num / 1e15:.1f}Q"
+    elif num >= 1e12:
+        return f"{num / 1e12:.1f}T"
+    elif num >= 1e9:
+        return f"{num / 1e9:.1f}B"
+    elif num >= 1e6:
+        return f"{num / 1e6:.1f}M"
+    elif num >= 1e3:
+        return f"{num / 1e3:.1f}K"
+    else:
+        return str(int(num))
+
 @app.get("/api/stats/overview")
 def get_stats_overview(request: Request, db: Session = Depends(get_db)):
     user_id = get_current_user(request)

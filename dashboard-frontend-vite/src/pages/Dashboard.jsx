@@ -13,6 +13,9 @@ export default function Dashboard() {
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState('overview');
   const [leaderboardType, setLeaderboardType] = useState('wave');
+  const [selectedTierForLeaderboard, setSelectedTierForLeaderboard] = useState(1);
+  const [tierLeaderboard, setTierLeaderboard] = useState([]);
+  const [tierLeaderboardLoading, setTierLeaderboardLoading] = useState(false);
   const [adminMessage, setAdminMessage] = useState('');
   const [progressData, setProgressData] = useState([]);
   const [selectedTier, setSelectedTier] = useState('t1');
@@ -226,11 +229,34 @@ export default function Dashboard() {
     }
   };
 
+  const fetchTierLeaderboard = async (tier) => {
+    setTierLeaderboardLoading(true);
+    try {
+      const response = await fetch(`http://13.239.95.169:8000/api/leaderboard/tier/${tier}`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setTierLeaderboard(data);
+      }
+    } catch (error) {
+      console.error('Error fetching tier leaderboard:', error);
+    } finally {
+      setTierLeaderboardLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'progress') {
       fetchProgressData(selectedTier);
     }
   }, [activeTab, selectedTier]);
+
+  useEffect(() => {
+    if (activeTab === 'leaderboard' && leaderboardType === 'tier') {
+      fetchTierLeaderboard(selectedTierForLeaderboard);
+    }
+  }, [activeTab, leaderboardType, selectedTierForLeaderboard]);
 
   if (loading) {
     return (
@@ -367,9 +393,29 @@ export default function Dashboard() {
               >
                 By Coins
               </button>
+              <button 
+                className={`tab-btn ${leaderboardType === 'tier' ? 'active' : ''}`}
+                onClick={() => setLeaderboardType('tier')}
+              >
+                By Tier
+              </button>
             </div>
+            {leaderboardType === 'tier' && (
+              <div className="tier-selector">
+                <label>Select Tier: </label>
+                <select 
+                  value={selectedTierForLeaderboard} 
+                  onChange={(e) => setSelectedTierForLeaderboard(parseInt(e.target.value))}
+                  className="tier-select"
+                >
+                  {Array.from({length: 18}, (_, i) => (
+                    <option key={i+1} value={i+1}>Tier {i+1}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="leaderboard-content">
-              {leaderboardType === 'wave' ? (
+              {leaderboardType === 'wave' && (
                 <div className="leaderboard-table">
                   <div className="table-header">
                     <span>Rank</span>
@@ -377,7 +423,7 @@ export default function Dashboard() {
                     <span>Highest Wave</span>
                     <span>Tier</span>
                   </div>
-                  {waveLeaderboard.slice(0, 10).map((entry, index) => (
+                  {waveLeaderboard.map((entry, index) => (
                     <div key={index} className="table-row">
                       <span className="rank">#{index + 1}</span>
                       <span className="player">{entry.username}</span>
@@ -386,7 +432,9 @@ export default function Dashboard() {
                     </div>
                   ))}
                 </div>
-              ) : (
+              )}
+              
+              {leaderboardType === 'coins' && (
                 <div className="leaderboard-table">
                   <div className="table-header">
                     <span>Rank</span>
@@ -394,7 +442,7 @@ export default function Dashboard() {
                     <span>Highest Coins</span>
                     <span>Tier</span>
                   </div>
-                  {coinsLeaderboard.slice(0, 10).map((entry, index) => (
+                  {coinsLeaderboard.map((entry, index) => (
                     <div key={index} className="table-row">
                       <span className="rank">#{index + 1}</span>
                       <span className="player">{entry.username}</span>
@@ -402,6 +450,31 @@ export default function Dashboard() {
                       <span className="tier">{entry.tier}</span>
                     </div>
                   ))}
+                </div>
+              )}
+              
+              {leaderboardType === 'tier' && (
+                <div className="leaderboard-table">
+                  <div className="table-header">
+                    <span>Rank</span>
+                    <span>Player</span>
+                    <span>Wave</span>
+                    <span>Coins</span>
+                  </div>
+                  {tierLeaderboardLoading ? (
+                    <div className="loading">Loading tier leaderboard...</div>
+                  ) : tierLeaderboard.length > 0 ? (
+                    tierLeaderboard.map((entry, index) => (
+                      <div key={index} className="table-row">
+                        <span className="rank">#{index + 1}</span>
+                        <span className="player">{entry.username}</span>
+                        <span className="wave">{entry.wave}</span>
+                        <span className="coins">{entry.coins_formatted}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="no-data">No data available for Tier {selectedTierForLeaderboard}</div>
+                  )}
                 </div>
               )}
             </div>
