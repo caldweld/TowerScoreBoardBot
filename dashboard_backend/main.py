@@ -450,12 +450,24 @@ def parse_num(val):
     if val is None:
         return 0
     val = str(val).replace(",", "").replace("$", "")
+    # Fix common OCR misreads
+    val = val.replace("o", "O").replace("l", "1").replace("I", "1")
     mult = 1
-    if val.endswith("K"): mult, val = 1_000, val[:-1]
-    elif val.endswith("M"): mult, val = 1_000_000, val[:-1]
-    elif val.endswith("B"): mult, val = 1_000_000_000, val[:-1]
-    elif val.endswith("T"): mult, val = 1_000_000_000_000, val[:-1]
-    elif val.endswith("Q"): mult, val = 1_000_000_000_000_000, val[:-1]
+    if len(val) > 1 and val[-1] in "KMBTQO":
+        unit = val[-1]
+        val = val[:-1]
+        if unit == "K":
+            mult = 1_000
+        elif unit == "M":
+            mult = 1_000_000
+        elif unit == "B":
+            mult = 1_000_000_000
+        elif unit == "T":
+            mult = 1_000_000_000_000
+        elif unit == "Q":
+            mult = 1_000_000_000_000_000
+        elif unit == "O":
+            mult = 1_000_000_000_000_000_000
     try:
         return float(val) * mult
     except:
