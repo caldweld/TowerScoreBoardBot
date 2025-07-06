@@ -61,15 +61,15 @@
 }
 
 .logout-btn {
-  background: linear-gradient(45deg, #ff4444, #cc0000);
-  color: white;
+  background: linear-gradient(45deg, #e5daff, #b8a9ff);
+  color: #363176;
   border: none;
   padding: 0.75rem 1.5rem;
   border-radius: 6px;
   cursor: pointer;
   font-weight: 600;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(255, 68, 68, 0.3);
+  box-shadow: 0 2px 8px rgba(229, 218, 255, 0.3);
 }
 
 .logout-btn:hover {
@@ -89,19 +89,20 @@
 }
 
 .dashboard-nav button {
-  background: transparent;
-  color: #cccccc;
-  border: none;
+  background: linear-gradient(145deg, rgba(54, 49, 118, 0.9), rgba(28, 24, 53, 0.9));
+  color: #e5daff;
+  border: 2px solid #e5daff;
   padding: 1rem 1.5rem;
   cursor: pointer;
   font-weight: 600;
   font-family: 'Orbitron', monospace;
   transition: all 0.3s ease;
-  border-bottom: 3px solid transparent;
+  border-radius: 10px;
   position: relative;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   font-size: 0.9rem;
+  margin: 0 0.5rem;
 }
 
 .dashboard-nav button:hover {
@@ -109,9 +110,9 @@
 }
 
 .dashboard-nav button.active {
-  color: #e5daff;
-  border-bottom-color: #e5daff;
-  background: rgba(229, 218, 255, 0.1);
+  color: #363176;
+  border-color: #e5daff;
+  background: #e5daff;
 }
 
 .dashboard-content {
@@ -147,8 +148,8 @@
 }
 
 .stat-card {
-  background: linear-gradient(145deg, rgba(20, 20, 20, 0.9), rgba(40, 40, 40, 0.9));
-  border: 2px solid #333;
+  background: linear-gradient(145deg, rgba(54, 49, 118, 0.9), rgba(28, 24, 53, 0.9));
+  border: 2px solid #e5daff;
   border-radius: 12px;
   padding: 1.5rem;
   text-align: center;
@@ -221,9 +222,9 @@
 }
 
 .tab-btn {
-  background: linear-gradient(145deg, rgba(20, 20, 20, 0.9), rgba(40, 40, 40, 0.9));
-  color: #cccccc;
-  border: 2px solid #333;
+  background: linear-gradient(145deg, rgba(54, 49, 118, 0.9), rgba(28, 24, 53, 0.9));
+  color: #e5daff;
+  border: 2px solid #e5daff;
   padding: 0.75rem 1.5rem;
   border-radius: 10px;
   cursor: pointer;
@@ -246,11 +247,11 @@
 }
 
 .leaderboard-content {
-  background: linear-gradient(145deg, rgba(20, 20, 20, 0.9), rgba(40, 40, 40, 0.9));
-  border: 2px solid #333;
+  background: linear-gradient(145deg, rgba(54, 49, 118, 0.9), rgba(28, 24, 53, 0.9));
+  border: 2px solid #e5daff;
   border-radius: 12px;
   padding: 2rem;
-  color: #cccccc;
+  color: #e5daff;
   width: 100%;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
 }
@@ -322,8 +323,8 @@
 /* Recent Users Section */
 .recent-users {
   margin-top: 2rem;
-  background: linear-gradient(145deg, rgba(20, 20, 20, 0.9), rgba(40, 40, 40, 0.9));
-  border: 2px solid #333;
+  background: linear-gradient(145deg, rgba(54, 49, 118, 0.9), rgba(28, 24, 53, 0.9));
+  border: 2px solid #e5daff;
   border-radius: 12px;
   padding: 1.5rem;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
@@ -369,8 +370,8 @@
 }
 
 .welcome-message {
-  background: linear-gradient(145deg, rgba(20, 20, 20, 0.9), rgba(40, 40, 40, 0.9));
-  border: 2px solid #333;
+  background: linear-gradient(145deg, rgba(54, 49, 118, 0.9), rgba(28, 24, 53, 0.9));
+  border: 2px solid #e5daff;
   border-radius: 12px;
   padding: 2rem;
   text-align: center;
@@ -436,8 +437,8 @@
 }
 
 .admin-card {
-  background: rgba(47, 49, 54, 0.8);
-  border: 1px solid #40444b;
+  background: linear-gradient(145deg, rgba(54, 49, 118, 0.9), rgba(28, 24, 53, 0.9));
+  border: 1px solid #e5daff;
   border-radius: 8px;
   padding: 1.5rem;
   transition: all 0.3s ease;
@@ -489,8 +490,8 @@
 
 .admin-list {
   margin-top: 2rem;
-  background: rgba(47, 49, 54, 0.8);
-  border: 1px solid #40444b;
+  background: linear-gradient(145deg, rgba(54, 49, 118, 0.9), rgba(28, 24, 53, 0.9));
+  border: 1px solid #e5daff;
   border-radius: 8px;
   padding: 1.5rem;
 }
@@ -573,8 +574,8 @@
 }
 
 .data-preview {
-  background: rgba(47, 49, 54, 0.8);
-  border: 1px solid #40444b;
+  background: linear-gradient(145deg, rgba(54, 49, 118, 0.9), rgba(28, 24, 53, 0.9));
+  border: 1px solid #e5daff;
   border-radius: 8px;
   padding: 1.5rem;
 }
@@ -635,8 +636,8 @@
   gap: 1rem;
   margin-bottom: 2rem;
   padding: 1rem;
-  background: rgba(47, 49, 54, 0.8);
-  border: 1px solid #40444b;
+  background: linear-gradient(145deg, rgba(54, 49, 118, 0.9), rgba(28, 24, 53, 0.9));
+  border: 1px solid #e5daff;
   border-radius: 8px;
 }
 
@@ -668,8 +669,8 @@
 }
 
 .chart-container {
-  background: rgba(47, 49, 54, 0.8);
-  border: 1px solid #40444b;
+  background: linear-gradient(145deg, rgba(54, 49, 118, 0.9), rgba(28, 24, 53, 0.9));
+  border: 1px solid #e5daff;
   border-radius: 8px;
   padding: 1.5rem;
   min-height: 500px;
