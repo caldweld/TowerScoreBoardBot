@@ -155,6 +155,10 @@
   color: #43b581 !important;
 }
 
+.status-offline {
+  color: #ed4245 !important;
+}
+
 /* Leaderboard Section */
 .leaderboard-section {
   width: 100%;

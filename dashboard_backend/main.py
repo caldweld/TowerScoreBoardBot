@@ -1,7 +1,11 @@
 import os
 from fastapi import FastAPI, Request, Depends, HTTPException, Response, Query
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import RedirectResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+import csv
+import io
+import json
+from datetime import datetime
 from dotenv import load_dotenv
 import requests
 from urllib.parse import urlencode
@@ -251,6 +255,101 @@ def remove_bot_admin(discord_id: str, request: Request, db: Session = Depends(ge
     db.query(BotAdmin).filter(BotAdmin.discordid == discord_id).delete()
     db.commit()
     return {"message": f"User {discord_id} removed from bot admins"}
+
+@app.get("/api/export/data")
+def export_all_data(request: Request, db: Session = Depends(get_db)):
+    user_id = get_current_user(request)
+    if not is_bot_admin(user_id, db):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Get all user data
+    users = db.query(UserData).all()
+    history = db.query(UserDataHistory).all()
+    
+    # Prepare data for export
+    export_data = {
+        "export_date": datetime.now().isoformat(),
+        "users": [],
+        "history": []
+    }
+    
+    # Format user data
+    for user in users:
+        user_data = {
+            "discord_id": user.discordid,
+            "discord_name": user.discordname,
+            "tiers": {}
+        }
+        for i in range(18):
+            tier_value = getattr(user, f"T{i+1}")
+            user_data["tiers"][f"T{i+1}"] = tier_value
+        export_data["users"].append(user_data)
+    
+    # Format history data
+    for entry in history:
+        history_data = {
+            "discord_id": entry.discordid,
+            "discord_name": entry.discordname,
+            "timestamp": entry.timestamp.isoformat(),
+            "tiers": {}
+        }
+        for i in range(18):
+            tier_value = getattr(entry, f"T{i+1}")
+            history_data["tiers"][f"T{i+1}"] = tier_value
+        export_data["history"].append(history_data)
+    
+    # Create JSON file in memory
+    json_data = json.dumps(export_data, indent=2, default=str)
+    json_bytes = json_data.encode('utf-8')
+    
+    # Create response with file download
+    filename = f"tower_data_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    
+    return Response(
+        content=json_bytes,
+        media_type="application/json",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+@app.get("/api/export/csv")
+def export_csv_data(request: Request, db: Session = Depends(get_db)):
+    user_id = get_current_user(request)
+    if not is_bot_admin(user_id, db):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    # Get all user data
+    users = db.query(UserData).all()
+    
+    # Create CSV in memory
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    header = ["Discord ID", "Discord Name"]
+    for i in range(18):
+        header.append(f"T{i+1}")
+    writer.writerow(header)
+    
+    # Write data
+    for user in users:
+        row = [user.discordid, user.discordname]
+        for i in range(18):
+            tier_value = getattr(user, f"T{i+1}")
+            row.append(tier_value or "")
+        writer.writerow(row)
+    
+    # Get CSV content
+    csv_content = output.getvalue()
+    output.close()
+    
+    # Create response with file download
+    filename = f"tower_data_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
 
 @app.get("/api/user/progress")
 def get_user_progress(

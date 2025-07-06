@@ -17,6 +17,10 @@ export default function Dashboard() {
   const [progressData, setProgressData] = useState([]);
   const [selectedTier, setSelectedTier] = useState('t1');
   const [progressLoading, setProgressLoading] = useState(false);
+  const [systemStatus, setSystemStatus] = useState({
+    bot: 'checking',
+    database: 'checking'
+  });
 
   useEffect(() => {
     fetchUserData();
@@ -65,6 +69,11 @@ export default function Dashboard() {
       if (statsRes.ok) {
         const statsData = await statsRes.json();
         setStats(statsData);
+        // Update system status based on successful API calls
+        setSystemStatus({
+          bot: 'online',
+          database: 'connected'
+        });
       }
 
       if (waveRes.ok) {
@@ -83,6 +92,10 @@ export default function Dashboard() {
       }
     } catch (err) {
       console.error('Error fetching data:', err);
+      setSystemStatus({
+        bot: 'offline',
+        database: 'disconnected'
+      });
     }
   };
 
@@ -139,6 +152,31 @@ export default function Dashboard() {
       }
     } catch (err) {
       setAdminMessage('Error performing admin action');
+    }
+  };
+
+  const handleExportData = async (format = 'json') => {
+    try {
+      const response = await fetch(`http://13.239.95.169:8000/api/export/${format}`, {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = response.headers.get('content-disposition')?.split('filename=')[1] || `tower_data_export.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        alert('Failed to export data');
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      alert('Error exporting data');
     }
   };
 
@@ -244,11 +282,15 @@ export default function Dashboard() {
               </div>
               <div className="stat-card">
                 <h3>Bot Status</h3>
-                <p className="status-online">{stats?.bot_status || 'Unknown'}</p>
+                <p className={`status-${systemStatus.bot === 'online' ? 'online' : 'offline'}`}>
+                  {systemStatus.bot === 'checking' ? 'Checking...' : systemStatus.bot}
+                </p>
               </div>
               <div className="stat-card">
                 <h3>Database</h3>
-                <p className="status-online">{stats?.database_status || 'Unknown'}</p>
+                <p className={`status-${systemStatus.database === 'connected' ? 'online' : 'offline'}`}>
+                  {systemStatus.database === 'checking' ? 'Checking...' : systemStatus.database}
+                </p>
               </div>
             </div>
             
@@ -343,11 +385,6 @@ export default function Dashboard() {
                 <button className="admin-btn">Remove Bot Admin</button>
                 <button className="admin-btn" onClick={() => fetchAllData()}>Refresh Data</button>
               </div>
-              <div className="admin-card">
-                <h3>Database</h3>
-                <button className="admin-btn">Backup Data</button>
-                <button className="admin-btn">Clear Cache</button>
-              </div>
             </div>
             
             <div className="admin-list">
@@ -377,7 +414,8 @@ export default function Dashboard() {
           <div className="data-section">
             <h2>Data Management</h2>
             <div className="data-controls">
-              <button className="data-btn">Export All Data</button>
+              <button className="data-btn" onClick={() => handleExportData('json')}>Export JSON</button>
+              <button className="data-btn" onClick={() => handleExportData('csv')}>Export CSV</button>
               <button className="data-btn">Import Data</button>
               <button className="data-btn">Clear All Data</button>
             </div>
