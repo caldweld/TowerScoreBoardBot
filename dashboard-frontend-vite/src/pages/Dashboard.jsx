@@ -545,7 +545,7 @@ export default function Dashboard() {
                   <div className="table-header">
                     <span>Rank</span>
                     <span>Player</span>
-                    <span>Value</span>
+                    <span>{NUMERIC_STATS_FIELDS.find(f => f.value === selectedStatsField)?.label || 'Value'}</span>
                   </div>
                   {statsLeaderboardLoading ? (
                     <div className="loading">Loading stats leaderboard...</div>
