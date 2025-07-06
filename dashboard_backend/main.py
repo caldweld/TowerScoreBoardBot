@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, Request, Depends, HTTPException, Response
+from fastapi import FastAPI, Request, Depends, HTTPException, Response, Query
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
@@ -251,4 +251,31 @@ def remove_bot_admin(discord_id: str, request: Request, db: Session = Depends(ge
     db.query(BotAdmin).filter(BotAdmin.discordid == discord_id).delete()
     db.commit()
     return {"message": f"User {discord_id} removed from bot admins"}
+
+@app.get("/api/user/progress")
+def get_user_progress(
+    request: Request,
+    db: Session = Depends(get_db),
+    tier: str = Query(..., description="Tier (e.g. t1, t2, etc.)")
+):
+    user_id = get_current_user(request)
+    if not tier.lower().startswith("t") or not tier[1:].isdigit():
+        raise HTTPException(status_code=400, detail="Invalid tier format")
+    tier_num = int(tier[1:])
+    if not (1 <= tier_num <= 18):
+        raise HTTPException(status_code=400, detail="Tier must be between t1 and t18")
+
+    history = db.query(UserDataHistory).filter(UserDataHistory.discordid == user_id).order_by(UserDataHistory.timestamp).all()
+    progress = []
+    for row in history:
+        tier_str = getattr(row, f"T{tier_num}")
+        if tier_str:
+            wave_match = re.search(r"Wave:\s*(\d+)", tier_str)
+            wave = int(wave_match.group(1)) if wave_match else 0
+            if wave > 0:  # Only include entries with actual wave data
+                progress.append({
+                    "timestamp": row.timestamp.isoformat(),
+                    "wave": wave
+                })
+    return progress
 

@@ -505,6 +505,74 @@
   box-shadow: 0 4px 12px rgba(88, 101, 242, 0.3);
 }
 
+/* Progress Section */
+.progress-section {
+  width: 100%;
+}
+
+.progress-section h2 {
+  margin-bottom: 2rem;
+  font-size: 1.8rem;
+  color: #ffffff;
+  text-align: center;
+}
+
+.progress-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: rgba(47, 49, 54, 0.8);
+  border: 1px solid #40444b;
+  border-radius: 8px;
+}
+
+.progress-controls label {
+  color: #ffffff;
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+.tier-select {
+  background: #2c2f33;
+  color: #ffffff;
+  border: 1px solid #40444b;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tier-select:hover {
+  border-color: #5865f2;
+}
+
+.tier-select:focus {
+  outline: none;
+  border-color: #5865f2;
+  box-shadow: 0 0 0 2px rgba(88, 101, 242, 0.2);
+}
+
+.chart-container {
+  background: rgba(47, 49, 54, 0.8);
+  border: 1px solid #40444b;
+  border-radius: 8px;
+  padding: 1.5rem;
+  min-height: 500px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.no-data {
+  color: #b9bbbe;
+  font-size: 1.1rem;
+  text-align: center;
+}
+
 /* Loading and Error States */
 .loading, .error {
   display: flex;

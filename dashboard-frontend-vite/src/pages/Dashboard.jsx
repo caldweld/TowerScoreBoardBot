@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import './Dashboard.css';
 
 export default function Dashboard() {
@@ -13,6 +14,9 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('overview');
   const [leaderboardType, setLeaderboardType] = useState('wave');
   const [adminMessage, setAdminMessage] = useState('');
+  const [progressData, setProgressData] = useState([]);
+  const [selectedTier, setSelectedTier] = useState('t1');
+  const [progressLoading, setProgressLoading] = useState(false);
 
   useEffect(() => {
     fetchUserData();
@@ -138,6 +142,34 @@ export default function Dashboard() {
     }
   };
 
+  const fetchProgressData = async (tier) => {
+    setProgressLoading(true);
+    try {
+      const response = await fetch(`http://13.239.95.169:8000/api/user/progress?tier=${tier}`, {
+        credentials: 'include'
+      });
+      if (response.ok) {
+        const history = await response.json();
+        // Format data for Recharts
+        const formattedData = history.map(entry => ({
+          date: entry.timestamp.slice(0, 10), // YYYY-MM-DD
+          wave: entry.wave
+        }));
+        setProgressData(formattedData);
+      }
+    } catch (error) {
+      console.error('Error fetching progress:', error);
+    } finally {
+      setProgressLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'progress') {
+      fetchProgressData(selectedTier);
+    }
+  }, [activeTab, selectedTier]);
+
   if (loading) {
     return (
       <div className="dashboard-container">
@@ -188,6 +220,12 @@ export default function Dashboard() {
           onClick={() => setActiveTab('data')}
         >
           Data Management
+        </button>
+        <button 
+          className={activeTab === 'progress' ? 'active' : ''} 
+          onClick={() => setActiveTab('progress')}
+        >
+          Progress Charts
         </button>
       </nav>
 
@@ -363,6 +401,62 @@ export default function Dashboard() {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'progress' && (
+          <div className="progress-section">
+            <h2>Progress Charts</h2>
+            <div className="progress-controls">
+              <label>Select Tier: </label>
+              <select 
+                value={selectedTier} 
+                onChange={(e) => setSelectedTier(e.target.value)}
+                className="tier-select"
+              >
+                {Array.from({length: 18}, (_, i) => (
+                  <option key={i+1} value={`t${i+1}`}>Tier {i+1}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="chart-container">
+              {progressLoading ? (
+                <div className="loading">Loading progress data...</div>
+              ) : progressData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={400}>
+                  <LineChart data={progressData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#444" />
+                    <XAxis 
+                      dataKey="date" 
+                      stroke="#fff"
+                      tick={{ fill: '#fff' }}
+                    />
+                    <YAxis 
+                      stroke="#fff"
+                      tick={{ fill: '#fff' }}
+                    />
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: '#2c2f33', 
+                        border: '1px solid #444',
+                        color: '#fff'
+                      }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="wave" 
+                      stroke="#5865f2" 
+                      strokeWidth={3}
+                      dot={{ fill: '#5865f2', strokeWidth: 2, r: 4 }}
+                      activeDot={{ r: 6, stroke: '#5865f2', strokeWidth: 2 }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="no-data">No progress data available for this tier.</div>
+              )}
             </div>
           </div>
         )}
