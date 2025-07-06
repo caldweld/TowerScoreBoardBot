@@ -13,6 +13,7 @@ from dashboard_backend.database import SessionLocal
 from dashboard_backend.models import UserData, UserDataHistory, BotAdmin
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+import asyncio
 
 load_dotenv()
 
@@ -680,7 +681,9 @@ async def debugremoveme(ctx):
     finally:
         session.close()
 
-bot.load_extension("cogs.stats_cog")
+async def main():
+    await bot.load_extension("cogs.stats_cog")
+    await bot.start(TOKEN)
 
 if __name__ == "__main__":
-    bot.run(TOKEN)
+    asyncio.run(main())
