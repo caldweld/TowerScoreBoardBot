@@ -642,6 +642,27 @@ async def debugremoveme(ctx):
     finally:
         session.close()
 
+@bot.command(name="uploadwaves", help="Upload your tier screenshot to save your waves/coins data.")
+async def uploadwaves(ctx):
+    if not ctx.message.attachments:
+        await ctx.send("Please attach a screenshot of your tier data.")
+        return
+    attachment = ctx.message.attachments[0]
+    try:
+        response = requests.get(attachment.url)
+        img = Image.open(BytesIO(response.content))
+        custom_config = r'--oem 3 --psm 6'
+        ocr_text = pytesseract.image_to_string(img, config=custom_config)
+        stats_line_index = find_stats_line(ocr_text)
+        if stats_line_index != -1:
+            tier_data = extract_tiers(ocr_text)
+            save_user_data(str(ctx.author.id), ctx.author.name, tier_data)
+            await ctx.send(f"✅ Tier data saved for {ctx.author.mention}!")
+        else:
+            await ctx.send("❌ Could not find tier stats in the image. Please make sure the image contains tier information.")
+    except Exception as e:
+        await ctx.send(f"❌ Error processing tier image: {e}")
+
 async def main():
     await bot.load_extension("cogs.stats_cog")
     await bot.start(TOKEN)
