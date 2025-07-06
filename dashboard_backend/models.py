@@ -54,4 +54,29 @@ class UserDataHistory(Base):
 
 class BotAdmin(Base):
     __tablename__ = 'bot_admins'
-    discordid = Column(String, primary_key=True) 
+    discordid = Column(String, primary_key=True)
+
+class UserStats(Base):
+    __tablename__ = 'user_stats'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    discordid = Column(String)
+    discordname = Column(String)
+    game_started = Column(String)
+    coins_earned = Column(String)
+    cash_earned = Column(String)
+    stones_earned = Column(String)
+    damage_dealt = Column(String)
+    enemies_destroyed = Column(String)
+    waves_completed = Column(String)
+    upgrades_bought = Column(String)
+    workshop_upgrades = Column(String)
+    workshop_coins_spent = Column(String)
+    research_completed = Column(String)
+    lab_coins_spent = Column(String)
+    free_upgrades = Column(String)
+    interest_earned = Column(String)
+    orb_kills = Column(String)
+    death_ray_kills = Column(String)
+    thorn_damage = Column(String)
+    waves_skipped = Column(String)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now()) 

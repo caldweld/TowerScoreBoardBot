@@ -680,5 +680,7 @@ async def debugremoveme(ctx):
     finally:
         session.close()
 
+bot.load_extension("cogs.stats_cog")
+
 if __name__ == "__main__":
     bot.run(TOKEN)
