@@ -17,15 +17,48 @@ class StatsCog(commands.Cog):
         try:
             stats = extract_stats_from_image_url(attachment.url)
             session = SessionLocal()
-            user_stats = UserStats(
-                discordid=str(ctx.author.id),
-                discordname=str(ctx.author),
-                **{k: stats.get(k) for k in stats if k != 'raw_text'}
-            )
-            session.add(user_stats)
-            session.commit()
+            # Fetch the most recent entry for this user
+            prev = session.query(UserStats).filter(UserStats.discordid == str(ctx.author.id)).order_by(UserStats.timestamp.desc()).first()
+            numeric_fields = [
+                "coins_earned", "cash_earned", "stones_earned", "damage_dealt", "enemies_destroyed", "waves_completed",
+                "upgrades_bought", "workshop_upgrades", "workshop_coins_spent", "research_completed", "lab_coins_spent",
+                "free_upgrades", "interest_earned", "orb_kills", "death_ray_kills", "thorn_damage", "waves_skipped"
+            ]
+            def parse_num(val):
+                if val is None:
+                    return 0
+                val = str(val).replace(",", "").replace("$", "")
+                mult = 1
+                if val.endswith("K"): mult, val = 1_000, val[:-1]
+                elif val.endswith("M"): mult, val = 1_000_000, val[:-1]
+                elif val.endswith("B"): mult, val = 1_000_000_000, val[:-1]
+                elif val.endswith("T"): mult, val = 1_000_000_000_000, val[:-1]
+                elif val.endswith("Q"): mult, val = 1_000_000_000_000_000, val[:-1]
+                try:
+                    return float(val) * mult
+                except:
+                    return 0
+            should_save = True
+            if prev:
+                should_save = False
+                for field in numeric_fields:
+                    new_val = parse_num(stats.get(field))
+                    prev_val = parse_num(getattr(prev, field))
+                    if new_val > prev_val:
+                        should_save = True
+                        break
+            if should_save:
+                user_stats = UserStats(
+                    discordid=str(ctx.author.id),
+                    discordname=str(ctx.author),
+                    **{k: stats.get(k) for k in stats if k != 'raw_text'}
+                )
+                session.add(user_stats)
+                session.commit()
+                await ctx.send("Your stats have been saved successfully!")
+            else:
+                await ctx.send("No stats have increased since your last upload. Nothing was saved.")
             session.close()
-            await ctx.send("Your stats have been saved successfully!")
         except Exception as e:
             await ctx.send(f"Failed to process your stats: {e}")
 

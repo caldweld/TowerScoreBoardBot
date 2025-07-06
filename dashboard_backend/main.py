@@ -12,7 +12,7 @@ from urllib.parse import urlencode
 from itsdangerous import URLSafeSerializer
 from sqlalchemy.orm import Session
 from dashboard_backend.database import get_db
-from dashboard_backend.models import UserData, UserDataHistory, BotAdmin
+from dashboard_backend.models import UserData, UserDataHistory, BotAdmin, UserStats
 import re
 
 load_dotenv()
@@ -439,4 +439,49 @@ def get_user_progress(
                     "wave": wave
                 })
     return progress
+
+NUMERIC_STATS_FIELDS = [
+    "coins_earned", "cash_earned", "stones_earned", "damage_dealt", "enemies_destroyed", "waves_completed",
+    "upgrades_bought", "workshop_upgrades", "workshop_coins_spent", "research_completed", "lab_coins_spent",
+    "free_upgrades", "interest_earned", "orb_kills", "death_ray_kills", "thorn_damage", "waves_skipped"
+]
+
+def parse_num(val):
+    if val is None:
+        return 0
+    val = str(val).replace(",", "").replace("$", "")
+    mult = 1
+    if val.endswith("K"): mult, val = 1_000, val[:-1]
+    elif val.endswith("M"): mult, val = 1_000_000, val[:-1]
+    elif val.endswith("B"): mult, val = 1_000_000_000, val[:-1]
+    elif val.endswith("T"): mult, val = 1_000_000_000_000, val[:-1]
+    elif val.endswith("Q"): mult, val = 1_000_000_000_000_000, val[:-1]
+    try:
+        return float(val) * mult
+    except:
+        return 0
+
+@app.get("/api/stats-leaderboard")
+def stats_leaderboard(field: str = Query(..., description="Stat field to rank by"), db: Session = Depends(get_db)):
+    if field not in NUMERIC_STATS_FIELDS:
+        raise HTTPException(status_code=400, detail="Invalid field")
+    # For each user, get their highest value for the field
+    users = db.query(UserStats.discordid, UserStats.discordname).distinct().all()
+    leaderboard = []
+    for user in users:
+        # Get all entries for this user, get max value for the field
+        entries = db.query(UserStats).filter(UserStats.discordid == user.discordid).all()
+        max_val = 0
+        for entry in entries:
+            val = parse_num(getattr(entry, field))
+            if val > max_val:
+                max_val = val
+        leaderboard.append({
+            "discordid": user.discordid,
+            "username": user.discordname,
+            "value": max_val
+        })
+    leaderboard = [x for x in leaderboard if x["value"] > 0]
+    leaderboard.sort(key=lambda x: x["value"], reverse=True)
+    return leaderboard
 

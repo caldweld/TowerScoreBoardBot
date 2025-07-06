@@ -24,6 +24,28 @@ export default function Dashboard() {
     bot: 'checking',
     database: 'checking'
   });
+  const NUMERIC_STATS_FIELDS = [
+    { value: 'coins_earned', label: 'Coins Earned' },
+    { value: 'cash_earned', label: 'Cash Earned' },
+    { value: 'stones_earned', label: 'Stones Earned' },
+    { value: 'damage_dealt', label: 'Damage Dealt' },
+    { value: 'enemies_destroyed', label: 'Enemies Destroyed' },
+    { value: 'waves_completed', label: 'Waves Completed' },
+    { value: 'upgrades_bought', label: 'Upgrades Bought' },
+    { value: 'workshop_upgrades', label: 'Workshop Upgrades' },
+    { value: 'workshop_coins_spent', label: 'Workshop Coins Spent' },
+    { value: 'research_completed', label: 'Research Completed' },
+    { value: 'lab_coins_spent', label: 'Lab Coins Spent' },
+    { value: 'free_upgrades', label: 'Free Upgrades' },
+    { value: 'interest_earned', label: 'Interest Earned' },
+    { value: 'orb_kills', label: 'Orb Kills' },
+    { value: 'death_ray_kills', label: 'Death Ray Kills' },
+    { value: 'thorn_damage', label: 'Thorn Damage' },
+    { value: 'waves_skipped', label: 'Waves Skipped' },
+  ];
+  const [statsLeaderboard, setStatsLeaderboard] = useState([]);
+  const [selectedStatsField, setSelectedStatsField] = useState(NUMERIC_STATS_FIELDS[0].value);
+  const [statsLeaderboardLoading, setStatsLeaderboardLoading] = useState(false);
 
   useEffect(() => {
     fetchUserData();
@@ -246,6 +268,21 @@ export default function Dashboard() {
     }
   };
 
+  const fetchStatsLeaderboard = async (field) => {
+    setStatsLeaderboardLoading(true);
+    try {
+      const response = await fetch(`http://13.239.95.169:8000/api/stats-leaderboard?field=${field}`, { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setStatsLeaderboard(data);
+      }
+    } catch (error) {
+      setStatsLeaderboard([]);
+    } finally {
+      setStatsLeaderboardLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'progress') {
       fetchProgressData(selectedTier);
@@ -257,6 +294,12 @@ export default function Dashboard() {
       fetchTierLeaderboard(selectedTierForLeaderboard);
     }
   }, [activeTab, leaderboardType, selectedTierForLeaderboard]);
+
+  useEffect(() => {
+    if (activeTab === 'leaderboard' && leaderboardType === 'stats') {
+      fetchStatsLeaderboard(selectedStatsField);
+    }
+  }, [activeTab, leaderboardType, selectedStatsField]);
 
   if (loading) {
     return (
@@ -399,6 +442,12 @@ export default function Dashboard() {
               >
                 By Tier
               </button>
+              <button 
+                className={`tab-btn ${leaderboardType === 'stats' ? 'active' : ''}`}
+                onClick={() => setLeaderboardType('stats')}
+              >
+                Stats Leaderboard
+              </button>
             </div>
             {leaderboardType === 'tier' && (
               <div className="tier-selector">
@@ -410,6 +459,20 @@ export default function Dashboard() {
                 >
                   {Array.from({length: 18}, (_, i) => (
                     <option key={i+1} value={i+1}>Tier {i+1}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {leaderboardType === 'stats' && (
+              <div className="tier-selector">
+                <label>Select Stat: </label>
+                <select 
+                  value={selectedStatsField} 
+                  onChange={(e) => setSelectedStatsField(e.target.value)}
+                  className="tier-select"
+                >
+                  {NUMERIC_STATS_FIELDS.map(field => (
+                    <option key={field.value} value={field.value}>{field.label}</option>
                   ))}
                 </select>
               </div>
@@ -474,6 +537,28 @@ export default function Dashboard() {
                     ))
                   ) : (
                     <div className="no-data">No data available for Tier {selectedTierForLeaderboard}</div>
+                  )}
+                </div>
+              )}
+              {leaderboardType === 'stats' && (
+                <div className="leaderboard-table">
+                  <div className="table-header">
+                    <span>Rank</span>
+                    <span>Player</span>
+                    <span>Value</span>
+                  </div>
+                  {statsLeaderboardLoading ? (
+                    <div className="loading">Loading stats leaderboard...</div>
+                  ) : statsLeaderboard.length > 0 ? (
+                    statsLeaderboard.map((entry, index) => (
+                      <div key={index} className="table-row">
+                        <span className="rank">#{index + 1}</span>
+                        <span className="player">{entry.username}</span>
+                        <span className="wave">{formatNumber(entry.value)}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="no-data">No data available for this stat</div>
                   )}
                 </div>
               )}
