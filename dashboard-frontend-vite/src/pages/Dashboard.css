@@ -319,6 +319,52 @@
   font-weight: 500;
 }
 
+.welcome-message {
+  background: rgba(47, 49, 54, 0.8);
+  border: 1px solid #40444b;
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  margin-top: 2rem;
+}
+
+.welcome-message h3 {
+  margin: 0 0 1rem 0;
+  color: #ffffff;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.welcome-message p {
+  margin: 0.5rem 0;
+  color: #b9bbbe;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.no-access-message {
+  background: rgba(47, 49, 54, 0.8);
+  border: 1px solid #40444b;
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  margin-top: 2rem;
+}
+
+.no-access-message h3 {
+  margin: 0 0 1rem 0;
+  color: #ffffff;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.no-access-message p {
+  margin: 0.5rem 0;
+  color: #b9bbbe;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
 /* Admin Section */
 .admin-section {
   width: 100%;
