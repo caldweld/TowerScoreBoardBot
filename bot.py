@@ -574,8 +574,7 @@ async def on_message(message):
                         img_buffer.seek(0)
                         
                         await message.channel.send(
-                            f"✅ Data saved for {message.author.mention}!",
-                            file=discord.File(img_buffer, 'tier_data.png')
+                            f"✅ Data saved for {message.author.mention}!"
                         )
                     else:
                         await message.channel.send("❌ Could not find stats in the image. Please make sure the image contains tier information.")

@@ -29,5 +29,43 @@ class StatsCog(commands.Cog):
         except Exception as e:
             await ctx.send(f"Failed to process your stats: {e}")
 
+    @commands.command(name="mystats", help="View your most recently uploaded stats.")
+    async def mystats(self, ctx):
+        session = SessionLocal()
+        try:
+            stats = session.query(UserStats).filter(UserStats.discordid == str(ctx.author.id)).order_by(UserStats.timestamp.desc()).first()
+            if not stats:
+                await ctx.send("❌ No stats found. Use !uploadstats to upload your stats screenshot.")
+                return
+            # Format the stats nicely
+            fields = [
+                ("Game Started", stats.game_started),
+                ("Coins Earned", stats.coins_earned),
+                ("Cash Earned", stats.cash_earned),
+                ("Stones Earned", stats.stones_earned),
+                ("Damage Dealt", stats.damage_dealt),
+                ("Enemies Destroyed", stats.enemies_destroyed),
+                ("Waves Completed", stats.waves_completed),
+                ("Upgrades Bought", stats.upgrades_bought),
+                ("Workshop Upgrades", stats.workshop_upgrades),
+                ("Workshop Coins Spent", stats.workshop_coins_spent),
+                ("Research Completed", stats.research_completed),
+                ("Lab Coins Spent", stats.lab_coins_spent),
+                ("Free Upgrades", stats.free_upgrades),
+                ("Interest Earned", stats.interest_earned),
+                ("Orb Kills", stats.orb_kills),
+                ("Death Ray Kills", stats.death_ray_kills),
+                ("Thorn Damage", stats.thorn_damage),
+                ("Waves Skipped", stats.waves_skipped),
+            ]
+            msg = f"📊 **Your Most Recent Stats:**\n"
+            for label, value in fields:
+                msg += f"**{label}:** {value if value is not None else 'N/A'}\n"
+            await ctx.send(msg)
+        except Exception as e:
+            await ctx.send(f"❌ Error retrieving your stats: {e}")
+        finally:
+            session.close()
+
 async def setup(bot):
     await bot.add_cog(StatsCog(bot)) 
