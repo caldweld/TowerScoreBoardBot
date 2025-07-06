@@ -25,6 +25,18 @@ STAT_FIELDS = [
     ("waves_skipped", r"Waves Skipped\s+([\d.,]+[KMBTQ]?)"),
 ]
 
+def normalize_stat_value(val):
+    if not val:
+        return val
+    # Match pattern like 419.720 or 1.06B
+    m = re.match(r"^(\d+\.\d{2})([A-Z0-9])$", val)
+    if m:
+        num, unit = m.groups()
+        if unit == '0':
+            unit = 'O'
+        return f"{num}{unit}"
+    return val
+
 def extract_stats_from_image_url(image_url: str) -> dict:
     response = requests.get(image_url)
     response.raise_for_status()
@@ -39,6 +51,10 @@ def extract_stats_from_text(ocr_text: str) -> dict:
     stats = {}
     for field, pattern in STAT_FIELDS:
         match = re.search(pattern, ocr_text, re.IGNORECASE)
-        stats[field] = match.group(1).strip() if match else None
+        value = match.group(1).strip() if match else None
+        # Normalize all numeric stat fields
+        if field != 'game_started' and value:
+            value = normalize_stat_value(value)
+        stats[field] = value
     stats['raw_text'] = ocr_text
     return stats 
