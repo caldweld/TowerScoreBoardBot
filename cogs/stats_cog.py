@@ -29,5 +29,5 @@ class StatsCog(commands.Cog):
         except Exception as e:
             await ctx.send(f"Failed to process your stats: {e}")
 
-def setup(bot):
-    bot.add_cog(StatsCog(bot)) 
+async def setup(bot):
+    await bot.add_cog(StatsCog(bot)) 
