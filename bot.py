@@ -541,46 +541,8 @@ async def progress_error(ctx, error):
 async def on_message(message):
     if message.author == bot.user:
         return
-
-    # Process commands first
+    # Only process commands, do not auto-process images
     await bot.process_commands(message)
-
-    # Check if message has an image
-    if message.attachments:
-        for attachment in message.attachments:
-            if attachment.content_type and attachment.content_type.startswith('image'):
-                try:
-                    # Download the image
-                    response = requests.get(attachment.url)
-                    img = Image.open(BytesIO(response.content))
-                    
-                    # Extract text using OCR
-                    custom_config = r'--oem 3 --psm 6'
-                    ocr_text = pytesseract.image_to_string(img, config=custom_config)
-                    
-                    # Find the stats line
-                    stats_line_index = find_stats_line(ocr_text)
-                    if stats_line_index != -1:
-                        # Extract tier data
-                        tier_data = extract_tiers(ocr_text)
-                        
-                        # Save to database
-                        save_user_data(str(message.author.id), message.author.name, tier_data)
-                        
-                        # Create and send a formatted table
-                        table_img = create_canvas_table(tier_data)
-                        img_buffer = BytesIO()
-                        table_img.save(img_buffer, format='PNG')
-                        img_buffer.seek(0)
-                        
-                        await message.channel.send(
-                            f"✅ Data saved for {message.author.mention}!"
-                        )
-                    else:
-                        await message.channel.send("❌ Could not find stats in the image. Please make sure the image contains tier information.")
-                        
-                except Exception as e:
-                    await message.channel.send(f"❌ Error processing image: {e}")
 
 @bot.command(help="Add a user to the bot admin list. Usage: !addbotadmin @user")
 @commands.has_permissions(administrator=True)
