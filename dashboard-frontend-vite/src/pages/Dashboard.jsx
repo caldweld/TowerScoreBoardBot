@@ -32,6 +32,13 @@ export default function Dashboard() {
     }
   }, [userData]);
 
+  // Redirect non-admin users away from admin-only tabs
+  useEffect(() => {
+    if ((activeTab === 'data' || activeTab === 'admin') && !botAdmins.includes(userData?.user_id)) {
+      setActiveTab('overview');
+    }
+  }, [activeTab, botAdmins, userData]);
+
   const fetchUserData = async () => {
     try {
       const response = await fetch('http://13.239.95.169:8000/api/auth/me', {
@@ -229,7 +236,10 @@ export default function Dashboard() {
       <header className="dashboard-header">
         <h1>Tower Scoreboard Dashboard</h1>
         <div className="user-info">
-          <span>User ID: {userData?.user_id}</span>
+          <div className="user-details">
+            <span>Name: {allUsers.find(user => user.discordid === userData?.user_id)?.discordname || 'Unknown'}</span>
+            <span>User ID: {userData?.user_id}</span>
+          </div>
           <button onClick={handleLogout} className="logout-btn">Logout</button>
         </div>
       </header>
@@ -247,18 +257,22 @@ export default function Dashboard() {
         >
           Leaderboard
         </button>
-        <button 
-          className={activeTab === 'admin' ? 'active' : ''} 
-          onClick={() => setActiveTab('admin')}
-        >
-          Admin Controls
-        </button>
-        <button 
-          className={activeTab === 'data' ? 'active' : ''} 
-          onClick={() => setActiveTab('data')}
-        >
-          Data Management
-        </button>
+        {botAdmins.includes(userData?.user_id) && (
+          <button 
+            className={activeTab === 'admin' ? 'active' : ''} 
+            onClick={() => setActiveTab('admin')}
+          >
+            Admin Controls
+          </button>
+        )}
+        {botAdmins.includes(userData?.user_id) && (
+          <button 
+            className={activeTab === 'data' ? 'active' : ''} 
+            onClick={() => setActiveTab('data')}
+          >
+            Data Management
+          </button>
+        )}
         <button 
           className={activeTab === 'progress' ? 'active' : ''} 
           onClick={() => setActiveTab('progress')}
@@ -416,8 +430,6 @@ export default function Dashboard() {
             <div className="data-controls">
               <button className="data-btn" onClick={() => handleExportData('json')}>Export JSON</button>
               <button className="data-btn" onClick={() => handleExportData('csv')}>Export CSV</button>
-              <button className="data-btn">Import Data</button>
-              <button className="data-btn">Clear All Data</button>
             </div>
             <div className="data-preview">
               <h3>User Data Overview</h3>

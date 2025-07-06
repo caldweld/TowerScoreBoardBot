@@ -120,6 +120,7 @@ def get_users(request: Request, db: Session = Depends(get_db)):
     users = db.query(UserData).all()
     return [
         {
+            "discordid": user.discordid,
             "discordname": user.discordname,
             "tiers": {f"T{i+1}": getattr(user, f"T{i+1}") for i in range(18)}
         }

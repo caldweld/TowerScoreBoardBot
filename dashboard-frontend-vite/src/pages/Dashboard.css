@@ -38,6 +38,17 @@
   gap: 1rem;
 }
 
+.user-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.user-details span {
+  color: #b9bbbe;
+  font-size: 0.9rem;
+}
+
 .user-info span {
   color: #b9bbbe;
   font-size: 0.9rem;
