@@ -28,14 +28,21 @@ STAT_FIELDS = [
 def normalize_stat_value(val):
     if not val:
         return val
-    # Match pattern like 419.720 or 1.06B
+    val = val.strip()
+    print(f"[DEBUG] Raw stat value before normalization: '{val}'")
+    # If it matches 419.720 or 1.06B, treat the last char as a unit
     m = re.match(r"^(\d+\.\d{2})([A-Z0-9])$", val)
     if m:
         num, unit = m.groups()
         if unit == '0':
             unit = 'O'
         return f"{num}{unit}"
-    return val
+    # If it's a valid float, just return as is
+    try:
+        float(val)
+        return val
+    except:
+        return val
 
 def extract_stats_from_image_url(image_url: str) -> dict:
     response = requests.get(image_url)
