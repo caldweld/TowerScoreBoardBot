@@ -21,8 +21,4 @@ screen -dmS bot python3 bot.py
 echo "Backend, frontend, and bot started in screen sessions 'backend', 'frontend', and 'bot'."
 
 #chmod +x start_dashboard.sh
-#POSTGRES_USER=toweruser
-#POSTGRES_PASSWORD=k6KMgU5CZEWdnj-_2fozO9h
-#POSTGRES_DB=towerscoreboard
-#POSTGRES_HOST=localhost
-#POSTGRES_PORT=5432
+
