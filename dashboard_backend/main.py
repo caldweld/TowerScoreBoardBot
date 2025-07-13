@@ -266,16 +266,46 @@ def get_tier_leaderboard(tier_num: int, request: Request, db: Session = Depends(
     return leaderboard
 
 def formatNumber(num):
-    if num >= 1e15:
-        return f"{num / 1e15:.1f}Q"
+    if num >= 1e60:  # ad
+        return f"{num / 1e60:.2f}ad"
+    elif num >= 1e57:  # ac
+        return f"{num / 1e57:.2f}ac"
+    elif num >= 1e54:  # ab
+        return f"{num / 1e54:.2f}ab"
+    elif num >= 1e51:  # aa
+        return f"{num / 1e51:.2f}aa"
+    elif num >= 1e48:  # D
+        return f"{num / 1e48:.2f}D"
+    elif num >= 1e45:  # N
+        return f"{num / 1e45:.2f}N"
+    elif num >= 1e42:  # O
+        return f"{num / 1e42:.2f}O"
+    elif num >= 1e39:  # S
+        return f"{num / 1e39:.2f}S"
+    elif num >= 1e36:  # s
+        return f"{num / 1e36:.2f}s"
+    elif num >= 1e33:  # Q
+        return f"{num / 1e33:.2f}Q"
+    elif num >= 1e30:  # q
+        return f"{num / 1e30:.2f}q"
+    elif num >= 1e27:  # T
+        return f"{num / 1e27:.2f}T"
+    elif num >= 1e24:  # B
+        return f"{num / 1e24:.2f}B"
+    elif num >= 1e21:  # M
+        return f"{num / 1e21:.2f}M"
+    elif num >= 1e18:  # K
+        return f"{num / 1e18:.2f}K"
+    elif num >= 1e15:
+        return f"{num / 1e15:.2f}Q"
     elif num >= 1e12:
-        return f"{num / 1e12:.1f}T"
+        return f"{num / 1e12:.2f}T"
     elif num >= 1e9:
-        return f"{num / 1e9:.1f}B"
+        return f"{num / 1e9:.2f}B"
     elif num >= 1e6:
-        return f"{num / 1e6:.1f}M"
+        return f"{num / 1e6:.2f}M"
     elif num >= 1e3:
-        return f"{num / 1e3:.1f}K"
+        return f"{num / 1e3:.2f}K"
     else:
         return str(int(num))
 
@@ -449,28 +479,57 @@ NUMERIC_STATS_FIELDS = [
 def parse_num(val):
     if val is None:
         return 0
-    val = str(val).replace(",", "").replace("$", "")
-    # Fix common OCR misreads
-    val = val.replace("o", "O").replace("l", "1").replace("I", "1")
-    mult = 1
-    if len(val) > 1 and val[-1] in "KMBTQO":
-        unit = val[-1]
-        val = val[:-1]
-        if unit == "K":
-            mult = 1_000
-        elif unit == "M":
-            mult = 1_000_000
-        elif unit == "B":
-            mult = 1_000_000_000
-        elif unit == "T":
-            mult = 1_000_000_000_000
-        elif unit == "Q":
-            mult = 1_000_000_000_000_000
-        elif unit == "O":
-            mult = 1_000_000_000_000_000_000
+    val = str(val).replace(",", "").replace("$", "").strip()
+    
+    # Define suffixes in order with their multipliers
+    suffixes = {
+        'K': 1_000,
+        'M': 1_000_000,
+        'B': 1_000_000_000,
+        'T': 1_000_000_000_000,
+        'q': 1_000_000_000_000_000,
+        'Q': 1_000_000_000_000_000_000,
+        's': 1_000_000_000_000_000_000_000,
+        'S': 1_000_000_000_000_000_000_000_000,
+        'O': 1_000_000_000_000_000_000_000_000_000,
+        'N': 1_000_000_000_000_000_000_000_000_000_000,
+        'D': 1_000_000_000_000_000_000_000_000_000_000_000,
+        'aa': 1_000_000_000_000_000_000_000_000_000_000_000_000,
+        'ab': 1_000_000_000_000_000_000_000_000_000_000_000_000_000,
+        'ac': 1_000_000_000_000_000_000_000_000_000_000_000_000_000_000,
+        'ad': 1_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000
+    }
+    
+    # Use regex to match number with optional suffix
+    # Pattern: ^(\d+(?:\.\d{1,2})?)([KMBTqQsSOND]|aa|ab|ac|ad)?$
+    import re
+    pattern = r'^(\d+(?:\.\d{1,2})?)([KMBTqQsSOND]|aa|ab|ac|ad)?$'
+    match = re.match(pattern, val)
+    
+    if match:
+        number_part, suffix = match.groups()
+        try:
+            number = float(number_part)
+            multiplier = suffixes.get(suffix, 1) if suffix else 1
+            return number * multiplier
+        except ValueError:
+            return 0
+    
+    # If regex doesn't match, try to handle edge cases
+    # Check if it ends with any of our suffixes
+    for suffix in sorted(suffixes.keys(), key=len, reverse=True):
+        if val.endswith(suffix):
+            try:
+                number_part = val[:-len(suffix)]
+                number = float(number_part)
+                return number * suffixes[suffix]
+            except ValueError:
+                continue
+    
+    # If no suffix found, try to parse as regular number
     try:
-        return float(val) * mult
-    except:
+        return float(val)
+    except ValueError:
         return 0
 
 @app.get("/api/stats-leaderboard")

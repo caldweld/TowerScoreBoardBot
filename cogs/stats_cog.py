@@ -27,18 +27,60 @@ class StatsCog(commands.Cog):
             def parse_num(val):
                 if val is None:
                     return 0
-                val = str(val).replace(",", "").replace("$", "")
-                mult = 1
-                if val.endswith("K"): mult, val = 1_000, val[:-1]
-                elif val.endswith("M"): mult, val = 1_000_000, val[:-1]
-                elif val.endswith("B"): mult, val = 1_000_000_000, val[:-1]
-                elif val.endswith("T"): mult, val = 1_000_000_000_000, val[:-1]
-                elif val.endswith("Q"): mult, val = 1_000_000_000_000_000, val[:-1]
+                val = str(val).replace(",", "").replace("$", "").strip()
+                
+                # Define suffixes in order with their multipliers
+                suffixes = {
+                    'K': 1_000,
+                    'M': 1_000_000,
+                    'B': 1_000_000_000,
+                    'T': 1_000_000_000_000,
+                    'q': 1_000_000_000_000_000,
+                    'Q': 1_000_000_000_000_000_000,
+                    's': 1_000_000_000_000_000_000_000,
+                    'S': 1_000_000_000_000_000_000_000_000,
+                    'O': 1_000_000_000_000_000_000_000_000_000,
+                    'N': 1_000_000_000_000_000_000_000_000_000_000,
+                    'D': 1_000_000_000_000_000_000_000_000_000_000_000,
+                    'aa': 1_000_000_000_000_000_000_000_000_000_000_000_000,
+                    'ab': 1_000_000_000_000_000_000_000_000_000_000_000_000_000,
+                    'ac': 1_000_000_000_000_000_000_000_000_000_000_000_000_000_000,
+                    'ad': 1_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000
+                }
+                
+                # Use regex to match number with optional suffix
+                # Pattern: ^(\d+(?:\.\d{1,2})?)([KMBTqQsSOND]|aa|ab|ac|ad)?$
+                import re
+                pattern = r'^(\d+(?:\.\d{1,2})?)([KMBTqQsSOND]|aa|ab|ac|ad)?$'
+                match = re.match(pattern, val)
+                
+                if match:
+                    number_part, suffix = match.groups()
+                    try:
+                        number = float(number_part)
+                        multiplier = suffixes.get(suffix, 1) if suffix else 1
+                        return number * multiplier
+                    except ValueError:
+                        return 0
+                
+                # If regex doesn't match, try to handle edge cases
+                # Check if it ends with any of our suffixes
+                for suffix in sorted(suffixes.keys(), key=len, reverse=True):
+                    if val.endswith(suffix):
+                        try:
+                            number_part = val[:-len(suffix)]
+                            number = float(number_part)
+                            return number * suffixes[suffix]
+                        except ValueError:
+                            continue
+                
+                # If no suffix found, try to parse as regular number
                 try:
-                    return float(val) * mult
-                except:
+                    return float(val)
+                except ValueError:
                     return 0
             should_save = True
+            increased_fields = []
             if prev:
                 should_save = False
                 for field in numeric_fields:
@@ -46,7 +88,7 @@ class StatsCog(commands.Cog):
                     prev_val = parse_num(getattr(prev, field))
                     if new_val > prev_val:
                         should_save = True
-                        break
+                        increased_fields.append((field, prev_val, new_val, new_val - prev_val))
             if should_save:
                 user_stats = UserStats(
                     discordid=str(ctx.author.id),
@@ -56,6 +98,11 @@ class StatsCog(commands.Cog):
                 session.add(user_stats)
                 session.commit()
                 await ctx.send("Your stats have been saved successfully!")
+                if increased_fields:
+                    diff_msg = "**Stats Increased:**\n"
+                    for field, prev_val, new_val, diff in increased_fields:
+                        diff_msg += f"**{field.replace('_', ' ').title()}**: {prev_val} → {new_val} (Δ {diff})\n"
+                    await ctx.send(diff_msg)
             else:
                 await ctx.send("No stats have increased since your last upload. Nothing was saved.")
             session.close()
