@@ -7,6 +7,22 @@ from image_stats import extract_stats_from_image_url
 class StatsCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
+    
+    def format_stat_value(self, value):
+        """Format stat value to add space between number and letter suffix"""
+        if value is None:
+            return 'N/A'
+        
+        # Define all possible suffixes
+        suffixes = ['K', 'M', 'B', 'T', 'q', 'Q', 's', 'S', 'O', 'N', 'D', 'aa', 'ab', 'ac', 'ad']
+        
+        # Check if value ends with any suffix
+        for suffix in sorted(suffixes, key=len, reverse=True):
+            if str(value).endswith(suffix):
+                # Add space before the suffix
+                return str(value)[:-len(suffix)] + ' ' + suffix
+        
+        return str(value)
 
     @commands.command(name="uploadstats", help="Upload your stats screenshot to save your stats.")
     async def uploadstats(self, ctx):
@@ -101,7 +117,11 @@ class StatsCog(commands.Cog):
                 if increased_fields:
                     diff_msg = "**Stats Increased:**\n"
                     for field, prev_val, new_val, diff in increased_fields:
-                        diff_msg += f"**{field.replace('_', ' ').title()}**: {prev_val} → {new_val} (Δ {diff})\n"
+                        # Format the values for display
+                        prev_formatted = self.format_stat_value(f"{prev_val:.2f}" if isinstance(prev_val, float) else str(prev_val))
+                        new_formatted = self.format_stat_value(f"{new_val:.2f}" if isinstance(new_val, float) else str(new_val))
+                        diff_formatted = self.format_stat_value(f"{diff:.2f}" if isinstance(diff, float) else str(diff))
+                        diff_msg += f"**{field.replace('_', ' ').title()}**: {prev_formatted} → {new_formatted} (Δ {diff_formatted})\n"
                     await ctx.send(diff_msg)
             else:
                 await ctx.send("No stats have increased since your last upload. Nothing was saved.")
@@ -140,7 +160,8 @@ class StatsCog(commands.Cog):
             ]
             msg = f"📊 **Your Most Recent Stats:**\n"
             for label, value in fields:
-                msg += f"**{label}:** {value if value is not None else 'N/A'}\n"
+                formatted_value = self.format_stat_value(value)
+                msg += f"**{label}:** {formatted_value}\n"
             await ctx.send(msg)
         except Exception as e:
             await ctx.send(f"❌ Error retrieving your stats: {e}")
