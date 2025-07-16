@@ -32,6 +32,21 @@ class StatsCog(commands.Cog):
         attachment = ctx.message.attachments[0]
         try:
             stats = extract_stats_from_image_url(attachment.url)
+            
+            # Validate that we got actual stats data
+            if not stats or 'raw_text' not in stats:
+                await ctx.send("❌ Failed to extract text from the image. Please make sure the image is clear and readable.")
+                return
+            
+            # Check if the extracted text contains expected stats fields
+            raw_text = stats.get('raw_text', '').lower()
+            expected_fields = ['coins earned', 'damage dealt', 'enemies destroyed', 'waves completed']
+            found_stats_fields = sum(1 for field in expected_fields if field in raw_text)
+            
+            if found_stats_fields < 2:  # Need at least 2 stats fields to be confident it's a stats image
+                await ctx.send("❌ This doesn't appear to be a stats screenshot. Please upload a stats image that contains fields like 'Coins Earned', 'Damage Dealt', 'Enemies Destroyed', etc. (not a tier screenshot)")
+                return
+            
             session = SessionLocal()
             # Fetch the most recent entry for this user
             prev = session.query(UserStats).filter(UserStats.discordid == str(ctx.author.id)).order_by(UserStats.timestamp.desc()).first()
@@ -64,23 +79,7 @@ class StatsCog(commands.Cog):
                     'ad': 1_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000
                 }
                 
-                # Use regex to match number with optional suffix
-                # Pattern: ^(\d+(?:\.\d{1,2})?)([KMBTqQsSOND]|aa|ab|ac|ad)?$
-                import re
-                pattern = r'^(\d+(?:\.\d{1,2})?)([KMBTqQsSOND]|aa|ab|ac|ad)?$'
-                match = re.match(pattern, val)
-                
-                if match:
-                    number_part, suffix = match.groups()
-                    try:
-                        number = float(number_part)
-                        multiplier = suffixes.get(suffix, 1) if suffix else 1
-                        return number * multiplier
-                    except ValueError:
-                        return 0
-                
-                # If regex doesn't match, try to handle edge cases
-                # Check if it ends with any of our suffixes
+                # Check if it ends with any of our suffixes (check longer ones first)
                 for suffix in sorted(suffixes.keys(), key=len, reverse=True):
                     if val.endswith(suffix):
                         try:
@@ -127,7 +126,7 @@ class StatsCog(commands.Cog):
                 await ctx.send("No stats have increased since your last upload. Nothing was saved.")
             session.close()
         except Exception as e:
-            await ctx.send(f"Failed to process your stats: {e}")
+            await ctx.send(f"❌ Failed to process stats image: {e}\n\nPlease make sure you uploaded a stats screenshot (not a tier screenshot). The image should contain fields like 'Coins Earned', 'Damage Dealt', 'Enemies Destroyed', etc.")
 
     @commands.command(name="mystats", help="View your most recently uploaded stats.")
     async def mystats(self, ctx):
