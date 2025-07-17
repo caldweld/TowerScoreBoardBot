@@ -9,20 +9,41 @@ class StatsCog(commands.Cog):
         self.bot = bot
     
     def format_stat_value(self, value):
-        """Format stat value to add space between number and letter suffix"""
+        """Format stat value to add space between number and letter suffix, and compact large numbers with suffixes."""
         if value is None:
             return 'N/A'
         
-        # Define all possible suffixes
-        suffixes = ['K', 'M', 'B', 'T', 'q', 'Q', 's', 'S', 'O', 'N', 'D', 'aa', 'ab', 'ac', 'ad']
+        # Try to convert to float for numeric formatting
+        try:
+            num = float(str(value).replace(',', '').replace('$', '').strip())
+        except (ValueError, TypeError):
+            # If not a number, try to add space before known suffixes
+            suffixes = ['K', 'M', 'B', 'T', 'q', 'Q', 's', 'S', 'O', 'N', 'D', 'aa', 'ab', 'ac', 'ad']
+            for suffix in sorted(suffixes, key=len, reverse=True):
+                if str(value).endswith(suffix):
+                    return str(value)[:-len(suffix)] + ' ' + suffix
+            return str(value)
         
-        # Check if value ends with any suffix
-        for suffix in sorted(suffixes, key=len, reverse=True):
-            if str(value).endswith(suffix):
-                # Add space before the suffix
-                return str(value)[:-len(suffix)] + ' ' + suffix
-        
-        return str(value)
+        # Compact number formatting
+        suffixes = [
+            (1e33, 'ad'), (1e30, 'ac'), (1e27, 'ab'), (1e24, 'aa'), (1e21, 'D'), (1e18, 'N'),
+            (1e15, 'O'), (1e12, 'S'), (1e9, 's'), (1e6, 'Q'), (1e3, 'q'), (1e12, 'T'), (1e9, 'B'), (1e6, 'M'), (1e3, 'K')
+        ]
+        # Use the largest suffix that fits
+        for factor, suffix in suffixes:
+            if abs(num) >= factor:
+                val = num / factor
+                # Remove trailing .00 for integers, else show 2 decimals
+                if val == int(val):
+                    val_str = f"{int(val)}"
+                else:
+                    val_str = f"{val:.2f}"
+                return f"{val_str} {suffix}"
+        # For numbers < 1000, just show as is (with up to 2 decimals if float)
+        if num == int(num):
+            return str(int(num))
+        else:
+            return f"{num:.2f}"
 
     @commands.command(name="uploadstats", help="Upload your stats screenshot to save your stats.")
     async def uploadstats(self, ctx):
@@ -33,6 +54,19 @@ class StatsCog(commands.Cog):
         try:
             stats = extract_stats_from_image_url(attachment.url)
             
+            # Reformat game_started to 'DDMMYYYY' if present
+            if stats.get('game_started'):
+                import re
+                from datetime import datetime
+                # Match e.g. 'July 312024' or 'July 31 2024'
+                m = re.match(r"([A-Za-z]+) (\d{1,2}) ?(\d{4})", stats['game_started'])
+                if m:
+                    try:
+                        dt = datetime.strptime(f"{m.group(1)} {m.group(2)} {m.group(3)}", "%B %d %Y")
+                        stats['game_started'] = dt.strftime("%d%m%Y")
+                    except Exception:
+                        pass
+
             # Validate that we got actual stats data
             if not stats or 'raw_text' not in stats:
                 await ctx.send("❌ Failed to extract text from the image. Please make sure the image is clear and readable.")
@@ -168,4 +202,4 @@ class StatsCog(commands.Cog):
             session.close()
 
 async def setup(bot):
-    await bot.add_cog(StatsCog(bot)) 
+    await bot.add_cog(StatsCog(bot))  
