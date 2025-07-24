@@ -60,9 +60,8 @@ def detect_image_type(image: Image.Image) -> dict:
         print(f"[DEBUG] Raw Gemini response: {response.text}")
         
         # Clean the response text
-        response_text = response.text.strip()
-        if not response_text:
-            raise ValueError("Empty response from Gemini")
+        response_text = clean_gemini_response(response.text)
+        print(f"[DEBUG] Cleaned response text: {response_text}")
             
         result = json.loads(response_text)
         print(f"[DEBUG] Image type detection result: {result}")
@@ -117,9 +116,8 @@ def extract_stats_data(image: Image.Image) -> dict:
         print(f"[DEBUG] Raw Gemini stats response: {response.text}")
         
         # Clean the response text
-        response_text = response.text.strip()
-        if not response_text:
-            raise ValueError("Empty response from Gemini")
+        response_text = clean_gemini_response(response.text)
+        print(f"[DEBUG] Cleaned stats response text: {response_text}")
             
         result = json.loads(response_text)
         print(f"[DEBUG] Stats extraction result: {result}")
@@ -170,7 +168,13 @@ def extract_tier_data(image: Image.Image) -> dict:
     
     try:
         response = model.generate_content([prompt, image])
-        result = json.loads(response.text)
+        print(f"[DEBUG] Raw Gemini tier response: {response.text}")
+        
+        # Clean the response text
+        response_text = clean_gemini_response(response.text)
+        print(f"[DEBUG] Cleaned tier response text: {response_text}")
+            
+        result = json.loads(response_text)
         print(f"[DEBUG] Tier extraction result: {result}")
         return result
     except Exception as e:
