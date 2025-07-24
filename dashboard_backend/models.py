@@ -8,6 +8,7 @@ class UserData(Base):
     __tablename__ = 'user_data'
     discordid = Column(String, primary_key=True)
     discordname = Column(String)
+    date = Column(DateTime(timezone=True), server_default=func.now())
     T1 = Column(String)
     T2 = Column(String)
     T3 = Column(String)

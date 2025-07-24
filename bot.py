@@ -79,6 +79,7 @@ def save_user_data(discord_id, discord_name, tier_data):
             user_data = UserData(
                 discordid=discord_id,
                 discordname=discord_name,
+                date=datetime.now(),
                 **{f"T{i+1}": tier_data[i] for i in range(18)}
             )
             session.add(user_data)
@@ -623,11 +624,17 @@ async def upload(ctx):
         if sql_result["success"]:
             if gemini_result["image_type"] == "stats":
                 stats_id = sql_result.get('stats_id', 'N/A')
-                await processing_msg.edit(content=f"✅ **Stats saved successfully!**\n\n🎯 **AI Confidence:** {gemini_result['confidence']:.1%}\n📊 **Image Type:** Stats\n📈 **Stats ID:** {stats_id}\n\nYour game statistics have been processed and saved to the database.")
+                improvements = sql_result.get('improvements', [])
+                improvement_text = f"\n📈 **Improvements:** {', '.join(improvements)}" if improvements else "\n📊 **Status:** No significant improvements detected"
+                await processing_msg.edit(content=f"✅ **Stats saved successfully!**\n\n🎯 **AI Confidence:** {gemini_result['confidence']:.1%}\n📊 **Image Type:** Stats\n📈 **Stats ID:** {stats_id}{improvement_text}\n\nYour game statistics have been processed and saved to the database.")
             elif gemini_result["image_type"] == "tier":
                 tier_data = sql_result.get("tier_data", {})
                 tiers_updated = tier_data.get("tiers_updated", 0)
-                await processing_msg.edit(content=f"✅ **Tier data saved successfully!**\n\n🎯 **AI Confidence:** {gemini_result['confidence']:.1%}\n📊 **Image Type:** Tier\n🏆 **Tiers Updated:** {tiers_updated}\n\nYour tier progress has been processed and saved to the database.")
+                improvements = tier_data.get("improvements", [])
+                skipped = tier_data.get("skipped", [])
+                improvement_text = f"\n🏆 **Improved Tiers:** {', '.join(improvements)}" if improvements else "\n⚠️ **No improvements found**"
+                skipped_text = f"\n⏭️ **Skipped (no improvement):** {', '.join(skipped)}" if skipped else ""
+                await processing_msg.edit(content=f"✅ **Tier data processed!**\n\n🎯 **AI Confidence:** {gemini_result['confidence']:.1%}\n📊 **Image Type:** Tier{improvement_text}{skipped_text}\n\nYour tier progress has been processed and saved to the database.")
             else:
                 await processing_msg.edit(content=f"❌ **Invalid Image Type:** AI detected '{gemini_result['image_type']}' which is not supported.\n\nPlease upload either a stats screenshot or a tier screenshot.")
         else:
@@ -671,7 +678,11 @@ async def uploadwaves(ctx):
         if sql_result["success"]:
             tier_data = sql_result.get("tier_data", {})
             tiers_updated = tier_data.get("tiers_updated", 0)
-            await processing_msg.edit(content=f"✅ **Tier data saved successfully!**\n\n🎯 **AI Confidence:** {gemini_result['confidence']:.1%}\n🏆 **Tiers Updated:** {tiers_updated}\n\nYour tier progress has been processed and saved to the database.")
+            improvements = tier_data.get("improvements", [])
+            skipped = tier_data.get("skipped", [])
+            improvement_text = f"\n🏆 **Improved Tiers:** {', '.join(improvements)}" if improvements else "\n⚠️ **No improvements found**"
+            skipped_text = f"\n⏭️ **Skipped (no improvement):** {', '.join(skipped)}" if skipped else ""
+            await processing_msg.edit(content=f"✅ **Tier data processed!**\n\n🎯 **AI Confidence:** {gemini_result['confidence']:.1%}{improvement_text}{skipped_text}\n\nYour tier progress has been processed and saved to the database.")
         else:
             await processing_msg.edit(content=f"❌ **Database Error:** {sql_result['message']}")
             

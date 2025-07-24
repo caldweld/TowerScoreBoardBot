@@ -79,7 +79,10 @@ class StatsCog(commands.Cog):
             sql_result = process_gemini_result(gemini_result, str(ctx.author.id), str(ctx.author))
             
             if sql_result["success"]:
-                await processing_msg.edit(content=f"✅ **Stats saved successfully!**\n\n🎯 **AI Confidence:** {gemini_result['confidence']:.1%}\n📊 **Stats ID:** {sql_result.get('stats_id', 'N/A')}\n\nYour game statistics have been processed and saved to the database.")
+                stats_id = sql_result.get('stats_id', 'N/A')
+                improvements = sql_result.get('improvements', [])
+                improvement_text = f"\n📈 **Improvements:** {', '.join(improvements)}" if improvements else "\n📊 **Status:** No significant improvements detected"
+                await processing_msg.edit(content=f"✅ **Stats saved successfully!**\n\n🎯 **AI Confidence:** {gemini_result['confidence']:.1%}\n📊 **Stats ID:** {stats_id}{improvement_text}\n\nYour game statistics have been processed and saved to the database.")
             else:
                 await processing_msg.edit(content=f"❌ **Database Error:** {sql_result['message']}")
                 

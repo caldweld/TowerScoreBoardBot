@@ -2,6 +2,12 @@
 
 echo "🚀 Starting Tower Scoreboard System..."
 
+# Initialize database schema
+echo "🔧 Initializing database schema..."
+cd /home/ubuntu/discord/bot/TowerScoreBoardBot
+source venv/bin/activate
+python3 dashboard_backend/init_db.py
+
 # Kill old screen sessions if they exist
 screen -S backend -X quit 2>/dev/null
 screen -S frontend -X quit 2>/dev/null
