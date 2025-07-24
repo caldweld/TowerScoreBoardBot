@@ -35,6 +35,30 @@ def clean_gemini_response(response_text: str) -> str:
     
     return response_text.strip()
 
+def normalize_stat_value(value: str) -> str:
+    """Normalize stat values to fix common OCR misreads and formatting"""
+    if not value or value == "null":
+        return value
+    
+    # Fix the 3-decimal issue: 2.260 -> 2.26O
+    import re
+    if re.match(r"^(\d+\.\d{3})$", value):
+        # Convert last digit '0' to 'O' for 3-decimal numbers
+        value = value[:-1] + "O"
+        print(f"[DEBUG] Normalized {value[:-1] + '0'} -> {value}")
+    
+    # Add space before suffixes: 15.03M -> 15.03 M
+    # Match patterns like: 123.45K, 1.23M, 456.78B, 789.01T, 123.45O, etc.
+    suffix_pattern = r'^(\d+(?:\.\d+)?)([KMBTOS])$'
+    match = re.match(suffix_pattern, value)
+    if match:
+        number_part = match.group(1)
+        suffix = match.group(2)
+        value = f"{number_part} {suffix}"
+        print(f"[DEBUG] Formatted suffix: {match.group(0)} -> {value}")
+    
+    return value
+
 def detect_image_type(image: Image.Image) -> dict:
     """Detect if image is stats, tier, or invalid"""
     prompt = """
@@ -120,6 +144,13 @@ def extract_stats_data(image: Image.Image) -> dict:
         print(f"[DEBUG] Cleaned stats response text: {response_text}")
             
         result = json.loads(response_text)
+        
+        # Normalize stat values to fix OCR misreads
+        if result and isinstance(result, dict):
+            for key, value in result.items():
+                if key != "game_started" and value:  # Don't normalize dates
+                    result[key] = normalize_stat_value(str(value))
+        
         print(f"[DEBUG] Stats extraction result: {result}")
         return result
     except Exception as e:
