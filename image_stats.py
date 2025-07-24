@@ -29,7 +29,6 @@ def normalize_stat_value(val):
     if not val:
         return val
     val = val.strip()
-    print(f"[DEBUG] Raw stat value before normalization: '{val}'")
     
     # Define all possible suffixes in order
     suffixes = ['K', 'M', 'B', 'T', 'q', 'Q', 's', 'S', 'O', 'N', 'D', 'aa', 'ab', 'ac', 'ad']
@@ -69,16 +68,13 @@ def extract_stats_from_image(image: Image.Image) -> dict:
     return extract_stats_from_text(ocr_text)
 
 def extract_stats_from_text(ocr_text: str) -> dict:
-    print(f"[DEBUG] Raw OCR text:\n{ocr_text}")
     stats = {}
     for field, pattern in STAT_FIELDS:
         match = re.search(pattern, ocr_text, re.IGNORECASE)
         value = match.group(1).strip() if match else None
-        print(f"[DEBUG] {field}: extracted='{value}'")
         # Normalize all numeric stat fields
         if field != 'game_started' and value:
             value = normalize_stat_value(value)
-            print(f"[DEBUG] {field}: normalized='{value}'")
         stats[field] = value
     stats['raw_text'] = ocr_text
     return stats 
