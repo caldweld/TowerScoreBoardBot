@@ -19,6 +19,22 @@ def download_image(image_url: str) -> Image.Image:
     response.raise_for_status()
     return Image.open(BytesIO(response.content))
 
+def clean_gemini_response(response_text: str) -> str:
+    """Clean Gemini response by removing markdown code blocks"""
+    response_text = response_text.strip()
+    if not response_text:
+        raise ValueError("Empty response from Gemini")
+    
+    # Remove markdown code blocks if present
+    if response_text.startswith('```json'):
+        response_text = response_text[7:]  # Remove ```json
+    if response_text.startswith('```'):
+        response_text = response_text[3:]  # Remove ```
+    if response_text.endswith('```'):
+        response_text = response_text[:-3]  # Remove trailing ```
+    
+    return response_text.strip()
+
 def detect_image_type(image: Image.Image) -> dict:
     """Detect if image is stats, tier, or invalid"""
     prompt = """
