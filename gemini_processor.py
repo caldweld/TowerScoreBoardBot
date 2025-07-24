@@ -24,7 +24,7 @@ def detect_image_type(image: Image.Image) -> dict:
     prompt = """
     Analyze this game screenshot and determine its type.
     
-    Return ONLY a JSON object with this exact format:
+    You must respond with ONLY a valid JSON object in this exact format:
     {
         "image_type": "stats" | "tier" | "invalid",
         "confidence": 0.0-1.0,
@@ -35,15 +35,25 @@ def detect_image_type(image: Image.Image) -> dict:
     - "stats": Shows individual game statistics like "Coins Earned", "Damage Dealt", "Enemies Destroyed", etc.
     - "tier": Shows tier progress data with "Tier 1", "Tier 2", etc. and wave/coin information
     - "invalid": Not a game screenshot or unclear what type of data it contains
+    
+    Do not include any other text, only the JSON object.
     """
     
     try:
         response = model.generate_content([prompt, image])
-        result = json.loads(response.text)
+        print(f"[DEBUG] Raw Gemini response: {response.text}")
+        
+        # Clean the response text
+        response_text = response.text.strip()
+        if not response_text:
+            raise ValueError("Empty response from Gemini")
+            
+        result = json.loads(response_text)
         print(f"[DEBUG] Image type detection result: {result}")
         return result
     except Exception as e:
         print(f"[DEBUG] Error in image type detection: {e}")
+        print(f"[DEBUG] Response text was: {getattr(response, 'text', 'No response')}")
         return {
             "image_type": "invalid",
             "confidence": 0.0,
@@ -55,7 +65,7 @@ def extract_stats_data(image: Image.Image) -> dict:
     prompt = """
     Extract game statistics from this screenshot.
     
-    Return ONLY a JSON object with this exact format:
+    You must respond with ONLY a valid JSON object in this exact format:
     {
         "game_started": "DDMMYYYY format",
         "coins_earned": "value with suffix (e.g., 616.32B)",
@@ -82,15 +92,25 @@ def extract_stats_data(image: Image.Image) -> dict:
     - Keep original suffixes (K, M, B, T, O, etc.)
     - For game_started, convert to DDMMYYYY format
     - Be very precise with the values
+    
+    Do not include any other text, only the JSON object.
     """
     
     try:
         response = model.generate_content([prompt, image])
-        result = json.loads(response.text)
+        print(f"[DEBUG] Raw Gemini stats response: {response.text}")
+        
+        # Clean the response text
+        response_text = response.text.strip()
+        if not response_text:
+            raise ValueError("Empty response from Gemini")
+            
+        result = json.loads(response_text)
         print(f"[DEBUG] Stats extraction result: {result}")
         return result
     except Exception as e:
         print(f"[DEBUG] Error in stats extraction: {e}")
+        print(f"[DEBUG] Response text was: {getattr(response, 'text', 'No response')}")
         return {"error": f"Failed to extract stats: {str(e)}"}
 
 def extract_tier_data(image: Image.Image) -> dict:
