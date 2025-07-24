@@ -1,6 +1,5 @@
 import discord
 import os
-import pytesseract
 import requests
 import re
 from io import BytesIO
@@ -11,10 +10,12 @@ from discord.ext import commands
 from sqlalchemy.orm import Session
 from dashboard_backend.database import SessionLocal
 from dashboard_backend.models import UserData, UserDataHistory, BotAdmin
+from gemini_processor import process_image
+from gemini_sql_parser import process_gemini_result
 
 load_dotenv()
 
-TOKEN = os.environ.get("DISCORD_BOT_TOKEN")
+TOKEN = os.environ.get("DISCORD_TOKEN")
 
 if TOKEN is None:
     raise ValueError("No Discord bot token found in environment variables.")
@@ -27,47 +28,10 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 def get_db_session():
     return SessionLocal()
 
+# Legacy function - now handled by Gemini AI
 def extract_tiers(text):
-    tier_data = ["Wave: 0 Coins: 0"] * 18
-    lines = text.splitlines()
-    
-    # Multiple patterns to handle different OCR outputs
-    patterns = [
-        # Pattern 1: "Tier X Y Z" where Y=wave, Z=coins
-        re.compile(r"Tier\s*(\d+)\s+(\d+)\s+([\d.,]+[KMBTQ]?)", re.IGNORECASE),
-        # Pattern 2: "Tier X Z" where Z=coins (no wave, assume 0)
-        re.compile(r"Tier\s*(\d+)\s+([\d.,]+[KMBTQ]?)", re.IGNORECASE),
-        # Pattern 3: "Tier X" (no data, assume 0)
-        re.compile(r"Tier\s*(\d+)", re.IGNORECASE)
-    ]
-
-    for line in lines:
-        line = line.strip()
-        if not line.lower().startswith("tier"):
-            continue
-            
-        matched = False
-        for i, pattern in enumerate(patterns):
-            match = pattern.search(line)
-            if match:
-                tier = int(match.group(1))
-                if 1 <= tier <= 18:
-                    if len(match.groups()) == 3:
-                        # Pattern 1: Tier X Y Z
-                        wave = match.group(2).strip()
-                        coins = match.group(3).strip()
-                        tier_data[tier - 1] = f"Wave: {wave} Coins: {coins}"
-                    elif len(match.groups()) == 2:
-                        # Pattern 2: Tier X Z (no wave)
-                        coins = match.group(2).strip()
-                        tier_data[tier - 1] = f"Wave: 0 Coins: {coins}"
-                    else:
-                        # Pattern 3: Tier X (no data)
-                        tier_data[tier - 1] = f"Wave: 0 Coins: 0"
-                    matched = True
-                    break
-
-    return tier_data
+    """Legacy function - replaced by Gemini AI processing"""
+    return ["Wave: 0 Coins: 0"] * 18
 
 def parse_wave_coins(tier_str):
     wave_match = re.search(r"Wave:\s*(\d+)", tier_str)
@@ -152,12 +116,9 @@ def is_bot_admin(discord_id):
     finally:
         session.close()
 
+# Legacy function - now handled by Gemini AI
 def find_stats_line(ocr_text):
-    pattern = re.compile(r"\b[s5\$][t7][a@][t7][s5\$]\b.*", re.IGNORECASE)
-    lines = ocr_text.splitlines()
-    for i, line in enumerate(lines):
-        if pattern.search(line):
-            return i
+    """Legacy function - replaced by Gemini AI processing"""
     return -1
 
 def create_canvas_table(tiers):
@@ -204,6 +165,9 @@ def create_canvas_table(tiers):
 @bot.event
 async def on_ready():
     print(f"✅ Bot is online as {bot.user}")
+    print(f"🤖 Gemini AI integration active")
+    print(f"📊 Database connection established")
+    print(f"🎯 Ready to process game screenshots!")
 
 @bot.command(name="commands", help="List all available commands and their descriptions.")
 async def commands_list(ctx):
@@ -629,26 +593,90 @@ async def debugremoveme(ctx):
     finally:
         session.close()
 
+@bot.command(name="upload", help="Upload any game screenshot (stats or tier) - AI will auto-detect the type.")
+async def upload(ctx):
+    if not ctx.message.attachments:
+        await ctx.send("Please attach a screenshot of your game data (stats or tier).")
+        return
+    
+    attachment = ctx.message.attachments[0]
+    
+    # Send initial processing message
+    processing_msg = await ctx.send("🤖 Processing image with AI... Please wait.")
+    
+    try:
+        # Process image with Gemini
+        gemini_result = process_image(attachment.url)
+        
+        if not gemini_result["success"]:
+            await processing_msg.edit(content=f"❌ Failed to process image: {gemini_result.get('error', 'Unknown error')}")
+            return
+        
+        # Check confidence level
+        if gemini_result["confidence"] < 0.7:
+            await processing_msg.edit(content=f"⚠️ Low confidence in processing ({gemini_result['confidence']:.1%}). Please ensure the image is clear and contains game data.")
+            return
+        
+        # Save to database using our SQL parser
+        sql_result = process_gemini_result(gemini_result, str(ctx.author.id), str(ctx.author))
+        
+        if sql_result["success"]:
+            if gemini_result["image_type"] == "stats":
+                stats_id = sql_result.get('stats_id', 'N/A')
+                await processing_msg.edit(content=f"✅ **Stats saved successfully!**\n\n🎯 **AI Confidence:** {gemini_result['confidence']:.1%}\n📊 **Image Type:** Stats\n📈 **Stats ID:** {stats_id}\n\nYour game statistics have been processed and saved to the database.")
+            elif gemini_result["image_type"] == "tier":
+                tier_data = sql_result.get("tier_data", {})
+                tiers_updated = tier_data.get("tiers_updated", 0)
+                await processing_msg.edit(content=f"✅ **Tier data saved successfully!**\n\n🎯 **AI Confidence:** {gemini_result['confidence']:.1%}\n📊 **Image Type:** Tier\n🏆 **Tiers Updated:** {tiers_updated}\n\nYour tier progress has been processed and saved to the database.")
+            else:
+                await processing_msg.edit(content=f"❌ **Invalid Image Type:** AI detected '{gemini_result['image_type']}' which is not supported.\n\nPlease upload either a stats screenshot or a tier screenshot.")
+        else:
+            await processing_msg.edit(content=f"❌ **Database Error:** {sql_result['message']}")
+            
+    except Exception as e:
+        await processing_msg.edit(content=f"❌ **Processing Error:** {str(e)}\n\nPlease make sure you uploaded a clear game screenshot.")
+
 @bot.command(name="uploadwaves", help="Upload your tier screenshot to save your waves/coins data.")
 async def uploadwaves(ctx):
     if not ctx.message.attachments:
         await ctx.send("Please attach a screenshot of your tier data.")
         return
+    
     attachment = ctx.message.attachments[0]
+    
+    # Send initial processing message
+    processing_msg = await ctx.send("🤖 Processing tier image with AI... Please wait.")
+    
     try:
-        response = requests.get(attachment.url)
-        img = Image.open(BytesIO(response.content))
-        custom_config = r'--oem 3 --psm 6'
-        ocr_text = pytesseract.image_to_string(img, config=custom_config)
-        stats_line_index = find_stats_line(ocr_text)
-        if stats_line_index != -1:
-            tier_data = extract_tiers(ocr_text)
-            save_user_data(str(ctx.author.id), ctx.author.name, tier_data)
-            await ctx.send(f"✅ Tier data saved for {ctx.author.mention}!")
+        # Process image with Gemini
+        gemini_result = process_image(attachment.url)
+        
+        if not gemini_result["success"]:
+            await processing_msg.edit(content=f"❌ Failed to process image: {gemini_result.get('error', 'Unknown error')}")
+            return
+        
+        # Check if it's actually a tier image
+        if gemini_result["image_type"] != "tier":
+            await processing_msg.edit(content=f"❌ This doesn't appear to be a tier screenshot. AI detected: {gemini_result['image_type']} (confidence: {gemini_result['confidence']:.1%})\n\nPlease upload a tier image that contains tier progress data with 'Tier 1', 'Tier 2', etc.")
+            return
+        
+        # Check confidence level
+        if gemini_result["confidence"] < 0.7:
+            await processing_msg.edit(content=f"⚠️ Low confidence in processing ({gemini_result['confidence']:.1%}). Please ensure the image is clear and contains tier data.")
+            return
+        
+        # Save to database using our SQL parser
+        sql_result = process_gemini_result(gemini_result, str(ctx.author.id), str(ctx.author))
+        
+        if sql_result["success"]:
+            tier_data = sql_result.get("tier_data", {})
+            tiers_updated = tier_data.get("tiers_updated", 0)
+            await processing_msg.edit(content=f"✅ **Tier data saved successfully!**\n\n🎯 **AI Confidence:** {gemini_result['confidence']:.1%}\n🏆 **Tiers Updated:** {tiers_updated}\n\nYour tier progress has been processed and saved to the database.")
         else:
-            await ctx.send("❌ Could not find tier stats in the image. Please make sure the image contains tier information.")
+            await processing_msg.edit(content=f"❌ **Database Error:** {sql_result['message']}")
+            
     except Exception as e:
-        await ctx.send(f"❌ Error processing tier image: {e}")
+        await processing_msg.edit(content=f"❌ **Processing Error:** {str(e)}\n\nPlease make sure you uploaded a clear tier screenshot.")
 
 async def main():
     await bot.load_extension("cogs.stats_cog")

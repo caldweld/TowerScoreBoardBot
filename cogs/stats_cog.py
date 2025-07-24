@@ -2,7 +2,8 @@ import discord
 from discord.ext import commands
 from dashboard_backend.database import SessionLocal
 from dashboard_backend.models import UserStats
-from image_stats import extract_stats_from_image_url
+from gemini_processor import process_image
+from gemini_sql_parser import process_gemini_result
 
 class StatsCog(commands.Cog):
     def __init__(self, bot):
@@ -50,117 +51,40 @@ class StatsCog(commands.Cog):
         if not ctx.message.attachments:
             await ctx.send("Please attach a screenshot of your stats.")
             return
+        
         attachment = ctx.message.attachments[0]
+        
+        # Send initial processing message
+        processing_msg = await ctx.send("🤖 Processing image with AI... Please wait.")
+        
         try:
-            stats = extract_stats_from_image_url(attachment.url)
+            # Process image with Gemini
+            gemini_result = process_image(attachment.url)
             
-            # Reformat game_started to 'DDMMYYYY' if present
-            if stats.get('game_started'):
-                import re
-                from datetime import datetime
-                # Match e.g. 'July 312024' or 'July 31 2024'
-                m = re.match(r"([A-Za-z]+) (\d{1,2}) ?(\d{4})", stats['game_started'])
-                if m:
-                    try:
-                        dt = datetime.strptime(f"{m.group(1)} {m.group(2)} {m.group(3)}", "%B %d %Y")
-                        stats['game_started'] = dt.strftime("%d%m%Y")
-                    except Exception:
-                        pass
-
-            # Validate that we got actual stats data
-            if not stats or 'raw_text' not in stats:
-                await ctx.send("❌ Failed to extract text from the image. Please make sure the image is clear and readable.")
+            if not gemini_result["success"]:
+                await processing_msg.edit(content=f"❌ Failed to process image: {gemini_result.get('error', 'Unknown error')}")
                 return
             
-            # Check if the extracted text contains expected stats fields
-            raw_text = stats.get('raw_text', '').lower()
-            expected_fields = ['coins earned', 'damage dealt', 'enemies destroyed', 'waves completed']
-            found_stats_fields = sum(1 for field in expected_fields if field in raw_text)
-            
-            if found_stats_fields < 2:  # Need at least 2 stats fields to be confident it's a stats image
-                await ctx.send("❌ This doesn't appear to be a stats screenshot. Please upload a stats image that contains fields like 'Coins Earned', 'Damage Dealt', 'Enemies Destroyed', etc. (not a tier screenshot)")
+            # Check if it's actually a stats image
+            if gemini_result["image_type"] != "stats":
+                await processing_msg.edit(content=f"❌ This doesn't appear to be a stats screenshot. AI detected: {gemini_result['image_type']} (confidence: {gemini_result['confidence']:.1%})\n\nPlease upload a stats image that contains fields like 'Coins Earned', 'Damage Dealt', 'Enemies Destroyed', etc.")
                 return
             
-            session = SessionLocal()
-            # Fetch the most recent entry for this user
-            prev = session.query(UserStats).filter(UserStats.discordid == str(ctx.author.id)).order_by(UserStats.timestamp.desc()).first()
-            numeric_fields = [
-                "coins_earned", "cash_earned", "stones_earned", "damage_dealt", "enemies_destroyed", "waves_completed",
-                "upgrades_bought", "workshop_upgrades", "workshop_coins_spent", "research_completed", "lab_coins_spent",
-                "free_upgrades", "interest_earned", "orb_kills", "death_ray_kills", "thorn_damage", "waves_skipped"
-            ]
-            def parse_num(val):
-                if val is None:
-                    return 0
-                val = str(val).replace(",", "").replace("$", "").strip()
-                
-                # Define suffixes in order with their multipliers
-                suffixes = {
-                    'K': 1_000,
-                    'M': 1_000_000,
-                    'B': 1_000_000_000,
-                    'T': 1_000_000_000_000,
-                    'q': 1_000_000_000_000_000,
-                    'Q': 1_000_000_000_000_000_000,
-                    's': 1_000_000_000_000_000_000_000,
-                    'S': 1_000_000_000_000_000_000_000_000,
-                    'O': 1_000_000_000_000_000_000_000_000_000,
-                    'N': 1_000_000_000_000_000_000_000_000_000_000,
-                    'D': 1_000_000_000_000_000_000_000_000_000_000_000,
-                    'aa': 1_000_000_000_000_000_000_000_000_000_000_000_000,
-                    'ab': 1_000_000_000_000_000_000_000_000_000_000_000_000_000,
-                    'ac': 1_000_000_000_000_000_000_000_000_000_000_000_000_000_000,
-                    'ad': 1_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000
-                }
-                
-                # Check if it ends with any of our suffixes (check longer ones first)
-                for suffix in sorted(suffixes.keys(), key=len, reverse=True):
-                    if val.endswith(suffix):
-                        try:
-                            number_part = val[:-len(suffix)]
-                            number = float(number_part)
-                            return number * suffixes[suffix]
-                        except ValueError:
-                            continue
-                
-                # If no suffix found, try to parse as regular number
-                try:
-                    return float(val)
-                except ValueError:
-                    return 0
-            should_save = True
-            increased_fields = []
-            if prev:
-                should_save = False
-                for field in numeric_fields:
-                    new_val = parse_num(stats.get(field))
-                    prev_val = parse_num(getattr(prev, field))
-                    if new_val > prev_val:
-                        should_save = True
-                        increased_fields.append((field, prev_val, new_val, new_val - prev_val))
-            if should_save:
-                user_stats = UserStats(
-                    discordid=str(ctx.author.id),
-                    discordname=str(ctx.author),
-                    **{k: stats.get(k) for k in stats if k != 'raw_text'}
-                )
-                session.add(user_stats)
-                session.commit()
-                await ctx.send("Your stats have been saved successfully!")
-                if increased_fields:
-                    diff_msg = "**Stats Increased:**\n"
-                    for field, prev_val, new_val, diff in increased_fields:
-                        # Format the values for display
-                        prev_formatted = self.format_stat_value(f"{prev_val:.2f}" if isinstance(prev_val, float) else str(prev_val))
-                        new_formatted = self.format_stat_value(f"{new_val:.2f}" if isinstance(new_val, float) else str(new_val))
-                        diff_formatted = self.format_stat_value(f"{diff:.2f}" if isinstance(diff, float) else str(diff))
-                        diff_msg += f"**{field.replace('_', ' ').title()}**: {prev_formatted} → {new_formatted} (Δ {diff_formatted})\n"
-                    await ctx.send(diff_msg)
+            # Check confidence level
+            if gemini_result["confidence"] < 0.7:
+                await processing_msg.edit(content=f"⚠️ Low confidence in processing ({gemini_result['confidence']:.1%}). Please ensure the image is clear and contains stats data.")
+                return
+            
+            # Save to database using our SQL parser
+            sql_result = process_gemini_result(gemini_result, str(ctx.author.id), str(ctx.author))
+            
+            if sql_result["success"]:
+                await processing_msg.edit(content=f"✅ **Stats saved successfully!**\n\n🎯 **AI Confidence:** {gemini_result['confidence']:.1%}\n📊 **Stats ID:** {sql_result.get('stats_id', 'N/A')}\n\nYour game statistics have been processed and saved to the database.")
             else:
-                await ctx.send("No stats have increased since your last upload. Nothing was saved.")
-            session.close()
+                await processing_msg.edit(content=f"❌ **Database Error:** {sql_result['message']}")
+                
         except Exception as e:
-            await ctx.send(f"❌ Failed to process stats image: {e}\n\nPlease make sure you uploaded a stats screenshot (not a tier screenshot). The image should contain fields like 'Coins Earned', 'Damage Dealt', 'Enemies Destroyed', etc.")
+            await processing_msg.edit(content=f"❌ **Processing Error:** {str(e)}\n\nPlease make sure you uploaded a clear stats screenshot.")
 
     @commands.command(name="mystats", help="View your most recently uploaded stats.")
     async def mystats(self, ctx):
