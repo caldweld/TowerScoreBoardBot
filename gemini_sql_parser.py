@@ -113,8 +113,8 @@ def parse_gemini_tier_to_sql(gemini_result: dict, discord_id: str, discord_name:
             wave = tier_info.get("wave", 0)
             coins = tier_info.get("coins", "0")
             
-            # Format: "wave:coins" (e.g., "11453:16.78B")
-            tier_values[f"T{tier_num}"] = f"{wave}:{coins}"
+            # Format: "Wave: {wave} Coins: {coins}" (e.g., "Wave: 11453 Coins: 16.78B")
+            tier_values[f"T{tier_num}"] = f"Wave: {wave} Coins: {coins}"
         
         # Update or insert UserData
         existing_user = db.query(UserData).filter(UserData.discordid == discord_id).first()
@@ -150,7 +150,7 @@ def parse_gemini_tier_to_sql(gemini_result: dict, discord_id: str, discord_name:
             "message": f"Tier data saved successfully!",
             "tier_data": {
                 "summary": tier_data.get("summary", {}),
-                "tiers_updated": len([v for v in tier_values.values() if v != "0:0"])
+                "tiers_updated": len([v for v in tier_values.values() if v != "Wave: 0 Coins: 0"])
             }
         }
         
