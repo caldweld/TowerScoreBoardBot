@@ -9,9 +9,21 @@ import os
 # Load environment variables
 load_dotenv()
 
-# Database connection
-DATABASE_URL = os.getenv('DATABASE_URL', 'postgresql://username:password@localhost/dbname')
-engine = create_engine(DATABASE_URL)
+# Database connection (using same config as dashboard_backend)
+POSTGRES_USER = os.getenv("POSTGRES_USER", "toweruser")
+POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "yourpassword")
+POSTGRES_DB = os.getenv("POSTGRES_DB", "towerscoreboard")
+POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
+POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
+
+DATABASE_URL = (
+    f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
+)
+
+print(f"[DEBUG] Database URL: {DATABASE_URL}")
+print(f"[DEBUG] Using host: {POSTGRES_HOST}, port: {POSTGRES_PORT}, db: {POSTGRES_DB}")
+
+engine = create_engine(DATABASE_URL, echo=False, future=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def parse_gemini_stats_to_sql(gemini_result: dict, discord_id: str, discord_name: str) -> dict:
