@@ -48,13 +48,14 @@ def normalize_stat_value(value: str) -> str:
         print(f"[DEBUG] Normalized {value[:-1] + '0'} -> {value}")
     
     # Add space before suffixes: 15.03M -> 15.03 M
-    # Match patterns like: 123.45K, 1.23M, 456.78B, 789.01T, 123.45O, etc.
-    suffix_pattern = r'^(\d+(?:\.\d+)?)([KMBTOS])$'
+    # Match patterns like: 123.45K, 1.23M, 456.78B, 789.01T, 123.45O, $105.97B, etc.
+    suffix_pattern = r'^(\$?)(\d+(?:\.\d+)?)([KMBTOS])$'
     match = re.match(suffix_pattern, value)
     if match:
-        number_part = match.group(1)
-        suffix = match.group(2)
-        value = f"{number_part} {suffix}"
+        currency_symbol = match.group(1)  # $ or empty
+        number_part = match.group(2)
+        suffix = match.group(3)
+        value = f"{currency_symbol}{number_part} {suffix}"
         print(f"[DEBUG] Formatted suffix: {match.group(0)} -> {value}")
     
     return value
