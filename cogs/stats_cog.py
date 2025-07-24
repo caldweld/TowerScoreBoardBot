@@ -54,9 +54,6 @@ class StatsCog(commands.Cog):
         try:
             stats = extract_stats_from_image_url(attachment.url)
             
-            # Debug: Print raw extracted stats
-            print(f"[DEBUG] Raw extracted stats: {stats}")
-            
             # Reformat game_started to 'DDMMYYYY' if present
             if stats.get('game_started'):
                 import re
