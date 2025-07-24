@@ -23,7 +23,7 @@ def test_gemini_api():
         print("✅ Gemini configured successfully")
         
         # Test with a simple text prompt (no image needed for basic test)
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-1.5-pro')
         
         response = model.generate_content("Say 'Hello from Gemini!' if you can see this message.")
         
