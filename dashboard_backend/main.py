@@ -30,7 +30,7 @@ app = FastAPI()
 # Allow CORS for your frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://13.239.95.169:5173", "http://13.239.95.169:3000"],
+    allow_origins=["http://localhost:3000", "http://13.239.95.169:5173", "http://13.239.95.169:3000", "http://www.toweraus.com", "https://www.toweraus.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -84,7 +84,7 @@ def callback(code: str, response: Response):
 
     # Set session cookie
     session_token = create_session(user_id)
-    response = RedirectResponse(url="http://13.239.95.169:3000/dashboard")
+    response = RedirectResponse(url="http://www.toweraus.com/dashboard")
     response.set_cookie("session", session_token, httponly=True, samesite="lax")
     return response
 
