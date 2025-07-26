@@ -1,9 +1,10 @@
 import React from 'react';
+import { API_ENDPOINTS } from '../config';
 import './LoginPage.css';
 
 export default function LoginPage() {
   const handleLogin = () => {
-    window.location.href = 'http://13.239.95.169:8000/api/auth/login';
+    window.location.href = API_ENDPOINTS.AUTH.LOGIN;
   };
 
   return (

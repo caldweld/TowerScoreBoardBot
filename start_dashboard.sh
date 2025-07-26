@@ -19,10 +19,12 @@ cd /home/ubuntu/discord/bot/TowerScoreBoardBot
 source venv/bin/activate
 screen -dmS backend uvicorn dashboard_backend.main:app --host 0.0.0.0 --port 8000
 
-# Start frontend (Vite dev server)
-echo "🎨 Starting frontend server..."
+# Build and serve frontend (Production build)
+echo "🎨 Building and serving frontend..."
 cd /home/ubuntu/discord/bot/TowerScoreBoardBot/dashboard-frontend-vite
-screen -dmS frontend npm run dev
+npm install
+npm run build
+screen -dmS frontend sudo npx serve -s dist -l 80
 
 # Start bot with Gemini AI integration
 echo "🤖 Starting Discord bot with Gemini AI..."

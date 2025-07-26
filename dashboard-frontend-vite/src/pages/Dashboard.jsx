@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { API_ENDPOINTS } from '../config';
 import './Dashboard.css';
 
 export default function Dashboard() {
@@ -66,7 +67,7 @@ export default function Dashboard() {
 
   const fetchUserData = async () => {
     try {
-      const response = await fetch('http://13.239.95.169:8000/api/auth/me', {
+      const response = await fetch(API_ENDPOINTS.AUTH.ME, {
         credentials: 'include'
       });
       if (response.ok) {
@@ -87,7 +88,7 @@ export default function Dashboard() {
       // First, try to fetch bot admins to determine user permissions
       let isAdmin = false;
       try {
-        const adminsRes = await fetch('http://13.239.95.169:8000/api/admin/bot-admins', { credentials: 'include' });
+        const adminsRes = await fetch(API_ENDPOINTS.ADMIN.BOT_ADMINS, { credentials: 'include' });
         if (adminsRes.ok) {
           const adminsData = await adminsRes.json();
           setBotAdmins(adminsData.admin_ids);
@@ -104,9 +105,9 @@ export default function Dashboard() {
 
       // Fetch leaderboard and stats data for all users
       const [waveRes, coinsRes, statsRes] = await Promise.all([
-        fetch('http://13.239.95.169:8000/api/leaderboard/wave', { credentials: 'include' }),
-        fetch('http://13.239.95.169:8000/api/leaderboard/coins', { credentials: 'include' }),
-        fetch('http://13.239.95.169:8000/api/stats/overview', { credentials: 'include' })
+        fetch(API_ENDPOINTS.LEADERBOARD.WAVE, { credentials: 'include' }),
+        fetch(API_ENDPOINTS.LEADERBOARD.COINS, { credentials: 'include' }),
+        fetch(API_ENDPOINTS.STATS.OVERVIEW, { credentials: 'include' })
       ]);
 
       if (waveRes.ok) {
@@ -130,7 +131,7 @@ export default function Dashboard() {
 
       // If user is admin, fetch additional admin data
       if (isAdmin) {
-        const usersRes = await fetch('http://13.239.95.169:8000/api/users', { credentials: 'include' });
+        const usersRes = await fetch(API_ENDPOINTS.USER.ALL, { credentials: 'include' });
         if (usersRes.ok) {
           const usersData = await usersRes.json();
           setAllUsers(usersData);
@@ -150,7 +151,7 @@ export default function Dashboard() {
 
   const handleLogout = async () => {
     try {
-      await fetch('http://13.239.95.169:8000/api/auth/logout', {
+      await fetch(API_ENDPOINTS.AUTH.LOGOUT, {
         method: 'POST',
         credentials: 'include'
       });
@@ -189,14 +190,14 @@ export default function Dashboard() {
     try {
       let response;
       if (action === 'add' && discordId) {
-        response = await fetch('http://13.239.95.169:8000/api/admin/add-bot-admin', {
+        response = await fetch(API_ENDPOINTS.ADMIN.ADD_BOT_ADMIN, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({ discord_id: discordId })
         });
       } else if (action === 'remove' && discordId) {
-        response = await fetch('http://13.239.95.169:8000/api/admin/remove-bot-admin', {
+        response = await fetch(API_ENDPOINTS.ADMIN.REMOVE_BOT_ADMIN, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -208,7 +209,7 @@ export default function Dashboard() {
         const data = await response.json();
         setAdminMessage(data.message);
         // Refresh admin list
-        const adminsRes = await fetch('http://13.239.95.169:8000/api/admin/bot-admins', { credentials: 'include' });
+        const adminsRes = await fetch(API_ENDPOINTS.ADMIN.BOT_ADMINS, { credentials: 'include' });
         if (adminsRes.ok) {
           const adminsData = await adminsRes.json();
           setBotAdmins(adminsData.admin_ids);
@@ -221,7 +222,7 @@ export default function Dashboard() {
 
   const handleExportData = async (format = 'json') => {
     try {
-      const response = await fetch(`http://13.239.95.169:8000/api/export/${format}`, {
+      const response = await fetch(API_ENDPOINTS.EXPORT(format), {
         credentials: 'include'
       });
       
@@ -247,7 +248,7 @@ export default function Dashboard() {
   const fetchProgressData = async (tier) => {
     setProgressLoading(true);
     try {
-      const response = await fetch(`http://13.239.95.169:8000/api/user/progress?tier=${tier}`, {
+      const response = await fetch(API_ENDPOINTS.USER.PROGRESS(tier), {
         credentials: 'include'
       });
       if (response.ok) {
@@ -269,7 +270,7 @@ export default function Dashboard() {
   const fetchTierLeaderboard = async (tier) => {
     setTierLeaderboardLoading(true);
     try {
-      const response = await fetch(`http://13.239.95.169:8000/api/leaderboard/tier/${tier}`, {
+      const response = await fetch(API_ENDPOINTS.LEADERBOARD.TIER(tier), {
         credentials: 'include'
       });
       if (response.ok) {
@@ -286,7 +287,7 @@ export default function Dashboard() {
   const fetchStatsLeaderboard = async (field) => {
     setStatsLeaderboardLoading(true);
     try {
-      const response = await fetch(`http://13.239.95.169:8000/api/stats-leaderboard?field=${field}`, { credentials: 'include' });
+      const response = await fetch(API_ENDPOINTS.STATS.LEADERBOARD(field), { credentials: 'include' });
       if (response.ok) {
         const data = await response.json();
         setStatsLeaderboard(data);
