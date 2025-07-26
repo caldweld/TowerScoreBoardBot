@@ -1,5 +1,5 @@
 // API Configuration
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://13.239.95.169:8000';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://www.toweraus.com:8000';
 
 // API Endpoints
 export const API_ENDPOINTS = {
