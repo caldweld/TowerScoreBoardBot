@@ -6,10 +6,23 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 3000,
-    https: true // Enable HTTPS for local development
+    https: false // Disable HTTPS for production compatibility
+  },
+  build: {
+    outDir: 'dist',
+    assetsDir: 'assets',
+    sourcemap: false, // Disable sourcemaps for production
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          router: ['react-router-dom']
+        }
+      }
+    }
   },
   define: {
     // Make environment variables available to the frontend
-    'process.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL || 'http://13.239.95.169:8000')
+    'process.env.VITE_API_URL': JSON.stringify(process.env.VITE_API_URL || 'http://www.toweraus.com')
   }
 })
