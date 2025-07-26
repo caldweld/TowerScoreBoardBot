@@ -21,8 +21,9 @@ screen -dmS backend uvicorn dashboard_backend.main:app --host 0.0.0.0 --port 800
 
 # Build frontend (Production build)
 echo "🎨 Building frontend..."
-chmod +x build_frontend.sh
-./build_frontend.sh
+cd /home/ubuntu/discord/bot/TowerScoreBoardBot/dashboard-frontend-vite
+npm install
+npm run build
 
 # Start bot with Gemini AI integration
 echo "🤖 Starting Discord bot with Gemini AI..."
