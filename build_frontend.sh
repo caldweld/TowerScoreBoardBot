@@ -1,23 +1,34 @@
 #!/bin/bash
 
-echo "Building Tower Scoreboard Frontend..."
+echo "🎨 Building frontend with proper permissions..."
 
 # Navigate to frontend directory
-cd dashboard-frontend-vite
+cd /home/ubuntu/discord/bot/TowerScoreBoardBot/dashboard-frontend-vite
 
-# Install dependencies if node_modules doesn't exist
-if [ ! -d "node_modules" ]; then
-    echo "Installing dependencies..."
-    npm install
-fi
+echo ""
+echo "1. Temporarily changing ownership for build..."
+sudo chown -R ubuntu:ubuntu dist/
 
-# Build for production
-echo "Building for production..."
+echo ""
+echo "2. Installing dependencies..."
+npm install
+
+echo ""
+echo "3. Building frontend..."
 npm run build
 
-echo "Build complete! Files are in dashboard-frontend-vite/dist/"
 echo ""
-echo "Next steps:"
-echo "1. Upload contents of dist/ folder to your Porkbun hosting"
-echo "2. Update backend CORS configuration to include your domain"
-echo "3. Test the deployment" 
+echo "4. Setting correct ownership for nginx..."
+sudo chown -R www-data:www-data dist/
+
+echo ""
+echo "5. Setting correct permissions..."
+sudo chmod -R 755 dist/
+
+echo ""
+echo "6. Verifying build..."
+ls -la dist/
+
+echo ""
+echo "✅ Frontend build complete!"
+echo "🌐 nginx can now serve the updated frontend" 
