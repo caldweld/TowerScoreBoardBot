@@ -255,18 +255,4 @@ def process_image(image_url: str) -> dict:
             "data": None
         }
 
-# Test function for debugging
-def test_image_processing(image_url: str):
-    """Test function to process an image and show detailed debug info"""
-    print("=" * 50)
-    print("GEMINI IMAGE PROCESSING TEST")
-    print("=" * 50)
-    
-    result = process_image(image_url)
-    
-    print("\n" + "=" * 50)
-    print("FINAL RESULT:")
-    print("=" * 50)
-    print(json.dumps(result, indent=2))
-    
-    return result 
+ 

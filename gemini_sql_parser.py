@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from dashboard_backend.models import UserStats, UserData, UserDataHistory
 from dotenv import load_dotenv
@@ -26,6 +26,134 @@ print(f"[DEBUG] Using host: {POSTGRES_HOST}, port: {POSTGRES_PORT}, db: {POSTGRE
 
 engine = create_engine(DATABASE_URL, echo=False, future=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Define suffixes for number formatting
+SUFFIXES = {
+    'K': 1_000,
+    'M': 1_000_000,
+    'B': 1_000_000_000,
+    'T': 1_000_000_000_000,
+    'q': 1_000_000_000_000_000,
+    'Q': 1_000_000_000_000_000_000,
+    's': 1_000_000_000_000_000_000_000,
+    'S': 1_000_000_000_000_000_000_000_000,
+    'O': 1_000_000_000_000_000_000_000_000_000,
+    'N': 1_000_000_000_000_000_000_000_000_000_000,
+    'D': 1_000_000_000_000_000_000_000_000_000_000_000,
+    'aa': 1_000_000_000_000_000_000_000_000_000_000_000_000,
+    'ab': 1_000_000_000_000_000_000_000_000_000_000_000_000_000,
+    'ac': 1_000_000_000_000_000_000_000_000_000_000_000_000_000_000,
+    'ad': 1_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000
+}
+
+def clean_date_format(date_str):
+    """Clean and standardize date format to dd-mm-yyyy"""
+    if not date_str or not isinstance(date_str, str):
+        return date_str
+    
+    # Remove any non-digit characters
+    date_str = re.sub(r'[^\d]', '', date_str)
+    
+    # Check if it's in DDMMYYYY format (8 digits)
+    if len(date_str) == 8:
+        try:
+            day = int(date_str[:2])
+            month = int(date_str[2:4])
+            year = int(date_str[4:8])
+            
+            # Validate date components
+            if 1 <= day <= 31 and 1 <= month <= 12 and 1900 <= year <= 2100:
+                return f"{day:02d}-{month:02d}-{year:04d}"
+        except ValueError:
+            pass
+    
+    # If it's already in dd-mm-yyyy format, return as is
+    if re.match(r'^\d{2}-\d{2}-\d{4}$', date_str):
+        return date_str
+    
+    # If it's in yyyy-mm-dd format, convert to dd-mm-yyyy
+    if re.match(r'^\d{4}-\d{2}-\d{2}$', date_str):
+        try:
+            parsed_date = datetime.strptime(date_str, '%Y-%m-%d')
+            return parsed_date.strftime('%d-%m-%Y')
+        except ValueError:
+            pass
+    
+    # If it's a different format, try to parse it
+    try:
+        # Try common date formats
+        for fmt in ['%Y%m%d', '%d%m%Y', '%m%d%Y', '%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y']:
+            try:
+                parsed_date = datetime.strptime(date_str, fmt)
+                return parsed_date.strftime('%d-%m-%Y')
+            except ValueError:
+                continue
+    except:
+        pass
+    
+    return date_str  # Return original if can't parse
+
+def clean_monetary_value(value):
+    """Clean monetary values to have consistent $ prefix and spacing"""
+    if not value or not isinstance(value, str):
+        return value
+    
+    # Remove existing $ and clean up
+    cleaned = value.replace('$', '').strip()
+    
+    # Check if it's a monetary field
+    if re.match(r'^[\d.,]+(\s*[KMBTqQsSOND]|aa|ab|ac|ad)?$', cleaned):
+        # Add space before suffix if missing
+        for suffix in sorted(SUFFIXES.keys(), key=len, reverse=True):
+            if cleaned.endswith(suffix) and not cleaned.endswith(f' {suffix}'):
+                cleaned = cleaned[:-len(suffix)] + f' {suffix}'
+                break
+        
+        return f"${cleaned}"
+    
+    return value
+
+def clean_number_formatting(value):
+    """Clean number formatting to have consistent spacing before suffixes"""
+    if not value or not isinstance(value, str):
+        return value
+    
+    # Remove $ prefix for processing
+    has_dollar = value.startswith('$')
+    cleaned = value.replace('$', '').strip()
+    
+    # Add space before suffix if missing
+    for suffix in sorted(SUFFIXES.keys(), key=len, reverse=True):
+        if cleaned.endswith(suffix) and not cleaned.endswith(f' {suffix}'):
+            cleaned = cleaned[:-len(suffix)] + f' {suffix}'
+            break
+    
+    # Restore $ prefix if it was there
+    if has_dollar:
+        return f"${cleaned}"
+    
+    return cleaned
+
+def clean_stats_data(stats_data):
+    """Clean and standardize stats data before saving to database"""
+    cleaned_data = {}
+    
+    for key, value in stats_data.items():
+        if value is None or value == "":
+            cleaned_data[key] = None
+            continue
+            
+        # Clean date format
+        if key == "game_started":
+            cleaned_data[key] = clean_date_format(value)
+        # Clean monetary values
+        elif key in ["cash_earned", "interest_earned"]:
+            cleaned_data[key] = clean_monetary_value(value)
+        # Clean number formatting for all other numeric fields
+        else:
+            cleaned_data[key] = clean_number_formatting(value)
+    
+    return cleaned_data
 
 def parse_gemini_tier_to_sql(gemini_result: dict, discord_id: str, discord_name: str) -> dict:
     """
@@ -215,28 +343,31 @@ def parse_gemini_stats_to_sql(gemini_result: dict, discord_id: str, discord_name
                 if new_val > existing_val:
                     improvements.append(stat_name)
         
+        # Clean and standardize the stats data before saving
+        cleaned_stats = clean_stats_data(stats_data)
+        
         # Create new UserStats record
         new_stats = UserStats(
             discordid=discord_id,
             discordname=discord_name,
-            game_started=stats_data.get("game_started"),
-            coins_earned=stats_data.get("coins_earned"),
-            cash_earned=stats_data.get("cash_earned"),
-            stones_earned=stats_data.get("stones_earned"),
-            damage_dealt=stats_data.get("damage_dealt"),
-            enemies_destroyed=stats_data.get("enemies_destroyed"),
-            waves_completed=stats_data.get("waves_completed"),
-            upgrades_bought=stats_data.get("upgrades_bought"),
-            workshop_upgrades=stats_data.get("workshop_upgrades"),
-            workshop_coins_spent=stats_data.get("workshop_coins_spent"),
-            research_completed=stats_data.get("research_completed"),
-            lab_coins_spent=stats_data.get("lab_coins_spent"),
-            free_upgrades=stats_data.get("free_upgrades"),
-            interest_earned=stats_data.get("interest_earned"),
-            orb_kills=stats_data.get("orb_kills"),
-            death_ray_kills=stats_data.get("death_ray_kills"),
-            thorn_damage=stats_data.get("thorn_damage"),
-            waves_skipped=stats_data.get("waves_skipped")
+            game_started=cleaned_stats.get("game_started"),
+            coins_earned=cleaned_stats.get("coins_earned"),
+            cash_earned=cleaned_stats.get("cash_earned"),
+            stones_earned=cleaned_stats.get("stones_earned"),
+            damage_dealt=cleaned_stats.get("damage_dealt"),
+            enemies_destroyed=cleaned_stats.get("enemies_destroyed"),
+            waves_completed=cleaned_stats.get("waves_completed"),
+            upgrades_bought=cleaned_stats.get("upgrades_bought"),
+            workshop_upgrades=cleaned_stats.get("workshop_upgrades"),
+            workshop_coins_spent=cleaned_stats.get("workshop_coins_spent"),
+            research_completed=cleaned_stats.get("research_completed"),
+            lab_coins_spent=cleaned_stats.get("lab_coins_spent"),
+            free_upgrades=cleaned_stats.get("free_upgrades"),
+            interest_earned=cleaned_stats.get("interest_earned"),
+            orb_kills=cleaned_stats.get("orb_kills"),
+            death_ray_kills=cleaned_stats.get("death_ray_kills"),
+            thorn_damage=cleaned_stats.get("thorn_damage"),
+            waves_skipped=cleaned_stats.get("waves_skipped")
         )
         
         # Insert into database
@@ -280,61 +411,4 @@ def process_gemini_result(gemini_result: dict, discord_id: str, discord_name: st
     else:
         return {"success": False, "message": f"Unsupported image type: {gemini_result.get('image_type')}"}
 
-# Test function
-def test_sql_parser():
-    """Test the SQL parser with sample data"""
-    print("🧪 Testing SQL Parser")
-    print("=" * 50)
-    
-    # Sample stats data
-    sample_stats = {
-        "success": True,
-        "image_type": "stats",
-        "confidence": 1.0,
-        "data": {
-            "game_started": "22052025",
-            "coins_earned": "8.32B",
-            "cash_earned": "$105.97B",
-            "stones_earned": "855",
-            "damage_dealt": "2.260",
-            "enemies_destroyed": "40.10M",
-            "waves_completed": "304.15K",
-            "upgrades_bought": "243.54K",
-            "workshop_upgrades": "4.08K",
-            "workshop_coins_spent": "3.96B",
-            "research_completed": "400",
-            "lab_coins_spent": "3.76B",
-            "free_upgrades": "495.75K",
-            "interest_earned": "$15.03M",
-            "orb_kills": "29.07M",
-            "death_ray_kills": "0",
-            "thorn_damage": "525.69S",
-            "waves_skipped": "18004"
-        }
-    }
-    
-    # Test stats parsing
-    result = process_gemini_result(sample_stats, "123456789", "TestUser")
-    print(f"Stats Test Result: {result}")
-    
-    # Sample tier data
-    sample_tier = {
-        "success": True,
-        "image_type": "tier",
-        "confidence": 1.0,
-        "data": {
-            "summary": {"thorn_damage": "1.04D", "waves_skipped": 71572},
-            "tiers": {
-                "1": {"wave": 11453, "coins": "16.78B"},
-                "2": {"wave": 6520, "coins": "11.46B"},
-                "3": {"wave": 5873, "coins": "13.43B"}
-            }
-        }
-    }
-    
-    # Test tier parsing
-    result = process_gemini_result(sample_tier, "123456789", "TestUser")
-    print(f"Tier Test Result: {result}")
-
-if __name__ == "__main__":
-    test_sql_parser() 
+ 

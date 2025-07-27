@@ -28,10 +28,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 def get_db_session():
     return SessionLocal()
 
-# Legacy function - now handled by Gemini AI
-def extract_tiers(text):
-    """Legacy function - replaced by Gemini AI processing"""
-    return ["Wave: 0 Coins: 0"] * 18
+
 
 def parse_wave_coins(tier_str):
     wave_match = re.search(r"Wave:\s*(\d+)", tier_str)
@@ -117,51 +114,9 @@ def is_bot_admin(discord_id):
     finally:
         session.close()
 
-# Legacy function - now handled by Gemini AI
-def find_stats_line(ocr_text):
-    """Legacy function - replaced by Gemini AI processing"""
-    return -1
 
-def create_canvas_table(tiers):
-    width, height = 350, 450
-    background_color = (30, 30, 30)
-    text_color = (255, 255, 255)
-    header_color = (100, 200, 255)
-    line_color = (70, 70, 70)
 
-    img = Image.new("RGB", (width, height), background_color)
-    draw = ImageDraw.Draw(img)
 
-    try:
-        font = ImageFont.truetype("arial.ttf", 16)
-        font_bold = ImageFont.truetype("arialbd.ttf", 18)
-    except IOError:
-        font = ImageFont.load_default()
-        font_bold = font
-
-    # Headers
-    draw.text((10, 10), "Tier", fill=header_color, font=font_bold)
-    draw.text((80, 10), "Wave", fill=header_color, font=font_bold)
-    draw.text((180, 10), "Coins", fill=header_color, font=font_bold)
-
-    y_start = 40
-    row_height = 22
-    draw.line((10, 35, width - 10, 35), fill=line_color)
-
-    for i, entry in enumerate(tiers):
-        tier_num = f"T{i+1}"
-        wave_match = re.search(r"Wave: (\S+)", entry)
-        coin_match = re.search(r"Coins: (\S+)", entry)
-        wave = wave_match.group(1) if wave_match else "0"
-        coins = coin_match.group(1) if coin_match else "0"
-
-        y = y_start + i * row_height
-        draw.text((10, y), tier_num, fill=text_color, font=font)
-        draw.text((80, y), wave, fill=text_color, font=font)
-        draw.text((180, y), coins, fill=text_color, font=font)
-        draw.line((10, y + row_height - 4, width - 10, y + row_height - 4), fill=line_color)
-
-    return img
 
 @bot.event
 async def on_ready():
@@ -407,87 +362,7 @@ async def showdata_error(ctx, error):
     if isinstance(error, commands.MissingPermissions):
         await ctx.send("❌ You do not have permission to use this command.")
 
-@bot.command(help="Show your wave progress over time for a specific tier. Usage: !progress t1")
-async def progress(ctx, tier: str):
-    """Shows a graph of your wave progress over time for the specified tier."""
-    match = re.match(r"t(\d+)", tier.lower())
-    if not match:
-        await ctx.send("❌ Invalid tier format. Use e.g. `t1`, `t2`, etc.")
-        return
-    tier_num = int(match.group(1))
-    if not (1 <= tier_num <= 18):
-        await ctx.send("❌ Tier number must be between 1 and 18.")
-        return
-    
-    session = get_db_session()
-    try:
-        user_id = str(ctx.author.id)
-        history = session.query(UserDataHistory).filter(UserDataHistory.discordid == user_id).all()
-        user_history = []
-        for row in history:
-            tier_str = getattr(row, f"T{tier_num}")
-            if tier_str:
-                user_history.append(row)
-        
-        if not user_history:
-            await ctx.send("❌ No historical data found for you. Upload images to start tracking!")
-            return
-        
-        timestamps = []
-        waves = []
-        for row in user_history:
-            timestamp = row.timestamp
-            tier_str = getattr(row, f"T{tier_num}")
-            wave, _ = parse_wave_coins(tier_str)
-            if wave > 0:
-                timestamps.append(timestamp)
-                waves.append(wave)
-        
-        if not waves:
-            await ctx.send(f"❌ No wave data found for {tier.upper()}.")
-            return
-        
-        # Discord color palette
-        bg_color = '#23272A'
-        grid_color = '#99AAB5'
-        line_color = '#5865F2'
-        font_family = 'DejaVu Sans'
-        
-        # Prepare dates (YYYY-MM-DD only)
-        dates = [ts.strftime('%Y-%m-%d') for ts in timestamps]
-        
-        # Plot
-        plt.style.use('default')
-        fig, ax = plt.subplots(figsize=(8, 4), facecolor=bg_color)
-        ax.set_facecolor(bg_color)
-        ax.plot(dates, waves, marker='o', linestyle='-', color=line_color, linewidth=2, markersize=8)
-        ax.set_title(f"{ctx.author.name}'s {tier.upper()} Wave Progress", fontsize=16, fontweight='bold', color=grid_color, fontname=font_family)
-        ax.set_xlabel("Date", fontsize=12, color=grid_color, fontname=font_family)
-        ax.set_ylabel("Wave", fontsize=12, color=grid_color, fontname=font_family)
-        ax.tick_params(axis='x', colors=grid_color, labelsize=10, labelrotation=30)
-        ax.tick_params(axis='y', colors=grid_color, labelsize=10)
-        ax.grid(True, which='both', linestyle='--', linewidth=0.7, alpha=0.7, color=grid_color)
-        
-        # Save the plot
-        plt.tight_layout()
-        plt.savefig('progress.png', facecolor=bg_color, edgecolor='none', dpi=150, bbox_inches='tight')
-        plt.close()
-        
-        # Send the image
-        with open('progress.png', 'rb') as f:
-            await ctx.send(file=discord.File(f, 'progress.png'))
-        
-        # Clean up
-        os.remove('progress.png')
-    except Exception as e:
-        await ctx.send(f"❌ Error creating progress graph: {e}")
-    finally:
-        session.close()
 
-@progress.error
-async def progress_error(ctx, error):
-    if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send("❌ Please specify a tier, e.g. `!progress t1`")
 
 @bot.event
 async def on_message(message):
@@ -553,46 +428,9 @@ async def listbotadmins(ctx):
     finally:
         session.close()
 
-@bot.command(help="[Debug] Add yourself as a bot admin.")
-async def debugaddme(ctx):
-    # Check if user is already an admin
-    if is_bot_admin(str(ctx.author.id)):
-        await ctx.send("❌ You are already a bot admin.")
-        return
-    
-    session = get_db_session()
-    try:
-        new_admin = BotAdmin(discordid=str(ctx.author.id))
-        session.add(new_admin)
-        session.commit()
-        await ctx.send(f"✅ {ctx.author.mention} added as a bot admin (debug mode).")
-    except Exception as e:
-        session.rollback()
-        await ctx.send(f"❌ Error adding yourself as admin: {e}")
-    finally:
-        session.close()
 
-@bot.command(help="[Debug] Remove yourself from the bot admin list.")
-async def debugremoveme(ctx):
-    # Check if user is an admin
-    if not is_bot_admin(str(ctx.author.id)):
-        await ctx.send("❌ You are not a bot admin.")
-        return
-    
-    session = get_db_session()
-    try:
-        admin = session.query(BotAdmin).filter(BotAdmin.discordid == str(ctx.author.id)).first()
-        if admin:
-            session.delete(admin)
-            session.commit()
-            await ctx.send(f"✅ {ctx.author.mention} removed from bot admin list (debug mode).")
-        else:
-            await ctx.send("❌ You are not a bot admin.")
-    except Exception as e:
-        session.rollback()
-        await ctx.send(f"❌ Error removing yourself as admin: {e}")
-    finally:
-        session.close()
+
+
 
 @bot.command(name="upload", help="Upload any game screenshot (stats or tier) - AI will auto-detect the type.")
 async def upload(ctx):
