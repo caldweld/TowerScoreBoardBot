@@ -73,9 +73,26 @@ def detect_image_type(image: Image.Image) -> dict:
     }
     
     Classification rules:
-    - "stats": Shows individual game statistics like "Coins Earned", "Damage Dealt", "Enemies Destroyed", etc.
-    - "tier": Shows tier progress data with "Tier 1", "Tier 2", etc. and wave/coin information
-    - "invalid": Not a game screenshot or unclear what type of data it contains
+    
+    TIER IMAGE (look for these specific indicators):
+    - Contains "Tier 1", "Tier 2", "Tier 3", etc. (this is the PRIMARY indicator)
+    - Shows tier progress data with wave numbers and coin amounts for each tier
+    - May have a grid or list format showing multiple tiers
+    - Contains tier-specific terminology like "Tier Progress" or tier numbers
+    - If you see "Tier 1", "Tier 2", etc. anywhere in the image, it's ALWAYS a tier image
+    
+    STATS IMAGE (look for these indicators):
+    - Shows individual game statistics like "Coins Earned", "Damage Dealt", "Enemies Destroyed"
+    - Contains a list of various game metrics and achievements
+    - Shows overall game performance data
+    - Does NOT contain tier numbers (Tier 1, Tier 2, etc.)
+    
+    INVALID:
+    - Not a game screenshot
+    - Unclear what type of data it contains
+    - Neither stats nor tier indicators are present
+    
+    IMPORTANT: If you see ANY tier numbers (Tier 1, Tier 2, etc.), classify as "tier" regardless of other content.
     
     Do not include any other text, only the JSON object.
     """
@@ -99,6 +116,54 @@ def detect_image_type(image: Image.Image) -> dict:
             "confidence": 0.0,
             "reason": f"Error processing image: {str(e)}"
         }
+
+def validate_tier_detection(image: Image.Image, initial_classification: dict) -> dict:
+    """Secondary validation to check for tier keywords in the image text"""
+    # Extract text from image to look for tier keywords
+    text_prompt = """
+    Extract all text from this image. Focus on finding any tier-related keywords.
+    
+    Look specifically for:
+    - "Tier 1", "Tier 2", "Tier 3", etc.
+    - "Tier Progress"
+    - Any mention of tiers or tier numbers
+    
+    Return ONLY the text you can read from the image, nothing else.
+    """
+    
+    try:
+        text_response = model.generate_content([text_prompt, image])
+        extracted_text = text_response.text.strip().lower()
+        print(f"[DEBUG] Extracted text for tier validation: {extracted_text}")
+        
+        # Check for tier keywords
+        tier_keywords = ["tier 1", "tier 2", "tier 3", "tier 4", "tier 5", "tier 6", "tier 7", "tier 8", 
+                        "tier 9", "tier 10", "tier 11", "tier 12", "tier 13", "tier 14", "tier 15", 
+                        "tier 16", "tier 17", "tier 18", "tier progress"]
+        
+        found_tier_keywords = [keyword for keyword in tier_keywords if keyword in extracted_text]
+        
+        if found_tier_keywords:
+            print(f"[DEBUG] Found tier keywords: {found_tier_keywords}")
+            return {
+                "image_type": "tier",
+                "confidence": 0.95,
+                "reason": f"Found tier keywords: {', '.join(found_tier_keywords)}"
+            }
+        
+        # If no tier keywords found, it's not a tier image
+        print(f"[DEBUG] No tier keywords found, not a tier image")
+        return {
+            "image_type": "stats",
+            "confidence": 0.9,
+            "reason": "No tier keywords found in image text"
+        }
+        
+    except Exception as e:
+        print(f"[DEBUG] Error in tier validation: {e}")
+        return initial_classification
+
+
 
 def extract_stats_data(image: Image.Image) -> dict:
     """Extract stats data from a stats screenshot"""
@@ -164,6 +229,12 @@ def extract_tier_data(image: Image.Image) -> dict:
     prompt = """
     Extract tier progress data from this screenshot.
     
+    Look for:
+    - Tier numbers (Tier 1, Tier 2, Tier 3, etc.)
+    - Wave numbers for each tier
+    - Coin amounts for each tier
+    - Any summary statistics at the top or bottom
+    
     Return ONLY a JSON object with this exact format:
     {
         "summary": {
@@ -196,6 +267,8 @@ def extract_tier_data(image: Image.Image) -> dict:
     - Use 0 for wave and "0" for coins if tier has no data
     - Keep original suffixes (K, M, B, T, etc.)
     - Be very precise with the values
+    - Look carefully for tier numbers in the image
+    - If you can't find specific tier data, return empty values but don't fail
     """
     
     try:
@@ -224,20 +297,24 @@ def process_image(image_url: str) -> dict:
         
         # Detect image type
         type_result = detect_image_type(image)
-        print(f"[DEBUG] Image type: {type_result['image_type']} (confidence: {type_result['confidence']})")
+        print(f"[DEBUG] Initial image type: {type_result['image_type']} (confidence: {type_result['confidence']})")
+        
+        # Secondary validation for tier detection
+        validated_result = validate_tier_detection(image, type_result)
+        print(f"[DEBUG] Validated image type: {validated_result['image_type']} (confidence: {validated_result['confidence']})")
         
         result = {
             "success": True,
-            "image_type": type_result["image_type"],
-            "confidence": type_result["confidence"],
-            "reason": type_result["reason"],
+            "image_type": validated_result["image_type"],
+            "confidence": validated_result["confidence"],
+            "reason": validated_result["reason"],
             "data": None
         }
         
         # Extract data based on type
-        if type_result["image_type"] == "stats":
+        if validated_result["image_type"] == "stats":
             result["data"] = extract_stats_data(image)
-        elif type_result["image_type"] == "tier":
+        elif validated_result["image_type"] == "tier":
             result["data"] = extract_tier_data(image)
         else:
             result["data"] = {"error": "Invalid image type"}
