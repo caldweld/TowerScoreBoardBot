@@ -45,6 +45,51 @@ SUFFIXES = {
     'ad': 1_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000
 }
 
+# General numeric parser for values with optional suffixes (supports optional space and $)
+def parse_numeric_value(raw_value) -> float:
+    """Parse a numeric string that may contain a suffix like K/M/B/T/Q/O/N/D or aa/ab/ac/ad.
+
+    Handles optional dollar prefix, commas, and an optional space before the suffix.
+    Returns 0.0 on failure.
+    """
+    try:
+        value = str(raw_value)
+    except Exception:
+        return 0.0
+
+    if not value or value.lower() == "null":
+        return 0.0
+
+    value = value.replace("$", "").replace(",", "").strip()
+
+    # Build a regex that prefers longer suffixes first (e.g., aa over a)
+    suffix_alternation = "|".join(sorted(SUFFIXES.keys(), key=len, reverse=True))
+    pattern = rf"^(-?\d+(?:\.\d+)?)(?:\s*(?:{suffix_alternation}))?$"
+
+    match = re.match(pattern, value)
+    if match:
+        # When the optional group exists but suffix is absent, match.group(2) may be None
+        number_str = match.group(1)
+        # Re-extract suffix manually to avoid regex group counting issues
+        suffix = None
+        for suf in sorted(SUFFIXES.keys(), key=len, reverse=True):
+            if value.endswith(suf):
+                suffix = suf
+                break
+        try:
+            number = float(number_str)
+        except ValueError:
+            return 0.0
+        if suffix:
+            return number * SUFFIXES.get(suffix, 1)
+        return number
+
+    # Fallback: attempt plain float
+    try:
+        return float(value)
+    except ValueError:
+        return 0.0
+
 def clean_date_format(date_str):
     """Clean and standardize date format to dd-mm-yyyy"""
     if not date_str or not isinstance(date_str, str):
@@ -198,30 +243,23 @@ def parse_gemini_tier_to_sql(gemini_result: dict, discord_id: str, discord_name:
                 
                 # Parse existing values
                 existing_wave_match = re.search(r"Wave:\s*(\d+)", existing_value)
-                existing_coins_match = re.search(r"Coins:\s*([\d.,]+[KMBTQ]?)", existing_value)
+                suffix_alt = "|".join(sorted(SUFFIXES.keys(), key=len, reverse=True))
+                coins_regex = rf"Coins:\\s*([\\d.,]+(?:\\s*(?:{suffix_alt}))?)"
+                existing_coins_match = re.search(coins_regex, existing_value)
                 
                 existing_wave = int(existing_wave_match.group(1)) if existing_wave_match else 0
                 existing_coins_str = existing_coins_match.group(1) if existing_coins_match else "0"
                 
                 # Parse new values
                 new_wave_match = re.search(r"Wave:\s*(\d+)", new_value)
-                new_coins_match = re.search(r"Coins:\s*([\d.,]+[KMBTQ]?)", new_value)
+                new_coins_match = re.search(coins_regex, new_value)
                 
                 new_wave = int(new_wave_match.group(1)) if new_wave_match else 0
                 new_coins_str = new_coins_match.group(1) if new_coins_match else "0"
                 
                 # Convert coins to numeric values for comparison
                 def parse_coins(coins_str):
-                    if not coins_str or coins_str == "0":
-                        return 0
-                    # Remove commas and get numeric part
-                    coins_str = coins_str.replace(",", "")
-                    # Handle suffixes
-                    multipliers = {'K': 1e3, 'M': 1e6, 'B': 1e9, 'T': 1e12, 'Q': 1e15}
-                    for suffix, mult in multipliers.items():
-                        if coins_str.endswith(suffix):
-                            return float(coins_str[:-1]) * mult
-                    return float(coins_str)
+                    return parse_numeric_value(coins_str)
                 
                 existing_coins = parse_coins(existing_coins_str)
                 new_coins = parse_coins(new_coins_str)
@@ -314,19 +352,10 @@ def parse_gemini_stats_to_sql(gemini_result: dict, discord_id: str, discord_name
         
         improvements = []
         if existing_stats:
-            # Compare key stats to see if this is an improvement
+            # Compare key stats to see if this is an improvement using robust parser
             def parse_stat_value(value):
-                if not value or value == "null":
-                    return 0
-                # Remove common prefixes and parse
-                value = str(value).replace("$", "").replace(",", "").strip()
-                # Handle suffixes
-                multipliers = {'K': 1e3, 'M': 1e6, 'B': 1e9, 'T': 1e12, 'Q': 1e15, 'O': 1e18, 'N': 1e21, 'D': 1e24}
-                for suffix, mult in multipliers.items():
-                    if value.endswith(suffix):
-                        return float(value[:-1]) * mult
-                return float(value)
-            
+                return parse_numeric_value(value)
+
             # Compare key improvement metrics
             key_stats = [
                 ("waves_completed", "Waves Completed"),
