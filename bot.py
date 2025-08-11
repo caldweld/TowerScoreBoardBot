@@ -441,7 +441,7 @@ async def upload(ctx):
     attachment = ctx.message.attachments[0]
     
     # Send initial processing message
-    processing_msg = await ctx.send("🤖 Processing image with AI... Please wait.")
+    processing_msg = await ctx.send("🔄 Processing image... Please wait.")
     
     try:
         # Process image with Gemini
@@ -451,10 +451,7 @@ async def upload(ctx):
             await processing_msg.edit(content=f"❌ Failed to process image: {gemini_result.get('error', 'Unknown error')}")
             return
         
-        # Check confidence level
-        if gemini_result["confidence"] < 0.7:
-            await processing_msg.edit(content=f"⚠️ Low confidence in processing ({gemini_result['confidence']:.1%}). Please ensure the image is clear and contains game data.")
-            return
+        # Proceed without exposing or gating on AI confidence
         
         # Save to database using our SQL parser
         sql_result = process_gemini_result(gemini_result, str(ctx.author.id), str(ctx.author))
@@ -463,18 +460,18 @@ async def upload(ctx):
             if gemini_result["image_type"] == "stats":
                 stats_id = sql_result.get('stats_id', 'N/A')
                 improvements = sql_result.get('improvements', [])
-                improvement_text = f"\n📈 **Improvements:** {', '.join(improvements)}" if improvements else "\n📊 **Status:** No significant improvements detected"
-                await processing_msg.edit(content=f"✅ **Stats saved successfully!**\n\n🎯 **AI Confidence:** {gemini_result['confidence']:.1%}\n📊 **Image Type:** Stats\n📈 **Stats ID:** {stats_id}{improvement_text}\n\nYour game statistics have been processed and saved to the database.")
+                improvement_text = f"\n📈 Improvements: {', '.join(improvements)}" if improvements else "\n📊 Status: No significant improvements detected"
+                await processing_msg.edit(content=f"✅ Stats saved. ID: {stats_id}{improvement_text}")
             elif gemini_result["image_type"] == "tier":
                 tier_data = sql_result.get("tier_data", {})
                 tiers_updated = tier_data.get("tiers_updated", 0)
                 improvements = tier_data.get("improvements", [])
                 skipped = tier_data.get("skipped", [])
-                improvement_text = f"\n🏆 **Improved Tiers:** {', '.join(improvements)}" if improvements else "\n⚠️ **No improvements found**"
-                skipped_text = f"\n⏭️ **Skipped (no improvement):** {', '.join(skipped)}" if skipped else ""
-                await processing_msg.edit(content=f"✅ **Tier data processed!**\n\n🎯 **AI Confidence:** {gemini_result['confidence']:.1%}\n📊 **Image Type:** Tier{improvement_text}{skipped_text}\n\nYour tier progress has been processed and saved to the database.")
+                improvement_text = f"\n🏆 Improved Tiers: {', '.join(improvements)}" if improvements else "\n⚠️ No improvements found"
+                skipped_text = f"\n⏭️ Skipped (no improvement): {', '.join(skipped)}" if skipped else ""
+                await processing_msg.edit(content=f"✅ Tier data processed.{improvement_text}{skipped_text}")
             else:
-                await processing_msg.edit(content=f"❌ **Invalid Image Type:** AI detected '{gemini_result['image_type']}' which is not supported.\n\nPlease upload either a stats screenshot or a tier screenshot.")
+                await processing_msg.edit(content="❌ Invalid image. Please upload either a stats screenshot or a tier screenshot.")
         else:
             await processing_msg.edit(content=f"❌ **Database Error:** {sql_result['message']}")
             
@@ -490,7 +487,7 @@ async def uploadwaves(ctx):
     attachment = ctx.message.attachments[0]
     
     # Send initial processing message
-    processing_msg = await ctx.send("🤖 Processing tier image with AI... Please wait.")
+    processing_msg = await ctx.send("🔄 Processing tier image... Please wait.")
     
     try:
         # Process image with Gemini
@@ -502,13 +499,10 @@ async def uploadwaves(ctx):
         
         # Check if it's actually a tier image
         if gemini_result["image_type"] != "tier":
-            await processing_msg.edit(content=f"❌ This doesn't appear to be a tier screenshot. AI detected: {gemini_result['image_type']} (confidence: {gemini_result['confidence']:.1%})\n\nPlease upload a tier image that contains tier progress data with 'Tier 1', 'Tier 2', etc.")
+            await processing_msg.edit(content="❌ This doesn't appear to be a tier screenshot. Please upload a tier image that contains tier progress data with 'Tier 1', 'Tier 2', etc.")
             return
         
-        # Check confidence level
-        if gemini_result["confidence"] < 0.7:
-            await processing_msg.edit(content=f"⚠️ Low confidence in processing ({gemini_result['confidence']:.1%}). Please ensure the image is clear and contains tier data.")
-            return
+        # Proceed without exposing or gating on AI confidence
         
         # Save to database using our SQL parser
         sql_result = process_gemini_result(gemini_result, str(ctx.author.id), str(ctx.author))
@@ -518,9 +512,9 @@ async def uploadwaves(ctx):
             tiers_updated = tier_data.get("tiers_updated", 0)
             improvements = tier_data.get("improvements", [])
             skipped = tier_data.get("skipped", [])
-            improvement_text = f"\n🏆 **Improved Tiers:** {', '.join(improvements)}" if improvements else "\n⚠️ **No improvements found**"
-            skipped_text = f"\n⏭️ **Skipped (no improvement):** {', '.join(skipped)}" if skipped else ""
-            await processing_msg.edit(content=f"✅ **Tier data processed!**\n\n🎯 **AI Confidence:** {gemini_result['confidence']:.1%}{improvement_text}{skipped_text}\n\nYour tier progress has been processed and saved to the database.")
+            improvement_text = f"\n🏆 Improved Tiers: {', '.join(improvements)}" if improvements else "\n⚠️ No improvements found"
+            skipped_text = f"\n⏭️ Skipped (no improvement): {', '.join(skipped)}" if skipped else ""
+            await processing_msg.edit(content=f"✅ Tier data processed.{improvement_text}{skipped_text}")
         else:
             await processing_msg.edit(content=f"❌ **Database Error:** {sql_result['message']}")
             

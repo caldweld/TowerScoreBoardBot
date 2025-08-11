@@ -55,7 +55,7 @@ class StatsCog(commands.Cog):
         attachment = ctx.message.attachments[0]
         
         # Send initial processing message
-        processing_msg = await ctx.send("🤖 Processing image with AI... Please wait.")
+        processing_msg = await ctx.send("🔄 Processing image... Please wait.")
         
         try:
             # Process image with Gemini
@@ -67,13 +67,10 @@ class StatsCog(commands.Cog):
             
             # Check if it's actually a stats image
             if gemini_result["image_type"] != "stats":
-                await processing_msg.edit(content=f"❌ This doesn't appear to be a stats screenshot. AI detected: {gemini_result['image_type']} (confidence: {gemini_result['confidence']:.1%})\n\nPlease upload a stats image that contains fields like 'Coins Earned', 'Damage Dealt', 'Enemies Destroyed', etc.")
+                await processing_msg.edit(content="❌ This doesn't appear to be a stats screenshot. Please upload a stats image that contains fields like 'Coins Earned', 'Damage Dealt', 'Enemies Destroyed', etc.")
                 return
             
-            # Check confidence level
-            if gemini_result["confidence"] < 0.7:
-                await processing_msg.edit(content=f"⚠️ Low confidence in processing ({gemini_result['confidence']:.1%}). Please ensure the image is clear and contains stats data.")
-                return
+            # Proceed without exposing or gating on AI confidence
             
             # Save to database using our SQL parser
             sql_result = process_gemini_result(gemini_result, str(ctx.author.id), str(ctx.author))
@@ -81,8 +78,8 @@ class StatsCog(commands.Cog):
             if sql_result["success"]:
                 stats_id = sql_result.get('stats_id', 'N/A')
                 improvements = sql_result.get('improvements', [])
-                improvement_text = f"\n📈 **Improvements:** {', '.join(improvements)}" if improvements else "\n📊 **Status:** No significant improvements detected"
-                await processing_msg.edit(content=f"✅ **Stats saved successfully!**\n\n🎯 **AI Confidence:** {gemini_result['confidence']:.1%}\n📊 **Stats ID:** {stats_id}{improvement_text}\n\nYour game statistics have been processed and saved to the database.")
+                improvement_text = f"\n📈 Improvements: {', '.join(improvements)}" if improvements else "\n📊 Status: No significant improvements detected"
+                await processing_msg.edit(content=f"✅ Stats saved. ID: {stats_id}{improvement_text}")
             else:
                 await processing_msg.edit(content=f"❌ **Database Error:** {sql_result['message']}")
                 
