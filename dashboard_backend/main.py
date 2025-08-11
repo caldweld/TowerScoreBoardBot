@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, Request, Depends, HTTPException, Response, Query
+from fastapi import FastAPI, Request, Depends, HTTPException, Response, Query, Body
 from fastapi.responses import RedirectResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 import csv
@@ -58,7 +58,7 @@ def login():
     return RedirectResponse(url)
 
 @app.get("/api/auth/callback")
-def callback(code: str, response: Response):
+def callback(code: str, response: Response, state: str | None = None):
     data = {
         "client_id": DISCORD_CLIENT_ID,
         "client_secret": DISCORD_CLIENT_SECRET,
@@ -85,7 +85,14 @@ def callback(code: str, response: Response):
     # Set session cookie
     session_token = create_session(user_id)
     response = RedirectResponse(url="http://www.toweraus.com/dashboard")
-    response.set_cookie("session", session_token, httponly=True, samesite="lax")
+    response.set_cookie(
+        key="session",
+        value=session_token,
+        httponly=True,
+        samesite="lax",
+        secure=False,
+        max_age=60 * 60 * 24 * 7,
+    )
     return response
 
 def get_current_user(request: Request):
@@ -331,19 +338,25 @@ def get_bot_admins(request: Request, db: Session = Depends(get_db)):
     return {"admin_ids": admin_ids}
 
 @app.post("/api/admin/add-bot-admin")
-def add_bot_admin(discord_id: str, request: Request, db: Session = Depends(get_db)):
+def add_bot_admin(request: Request, db: Session = Depends(get_db), payload: dict = Body(...)):
     user_id = get_current_user(request)
     if not is_bot_admin(user_id, db):
         raise HTTPException(status_code=403, detail="Admin access required")
+    discord_id = payload.get("discord_id")
+    if not discord_id:
+        raise HTTPException(status_code=400, detail="discord_id is required")
     db.add(BotAdmin(discordid=discord_id))
     db.commit()
     return {"message": f"User {discord_id} added as bot admin"}
 
 @app.delete("/api/admin/remove-bot-admin")
-def remove_bot_admin(discord_id: str, request: Request, db: Session = Depends(get_db)):
+def remove_bot_admin(request: Request, db: Session = Depends(get_db), payload: dict = Body(...)):
     user_id = get_current_user(request)
     if not is_bot_admin(user_id, db):
         raise HTTPException(status_code=403, detail="Admin access required")
+    discord_id = payload.get("discord_id")
+    if not discord_id:
+        raise HTTPException(status_code=400, detail="discord_id is required")
     db.query(BotAdmin).filter(BotAdmin.discordid == discord_id).delete()
     db.commit()
     return {"message": f"User {discord_id} removed from bot admins"}

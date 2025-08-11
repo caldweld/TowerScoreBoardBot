@@ -1,9 +1,10 @@
 import React from 'react';
 import './LandingPage.css';
+import { API_ENDPOINTS } from '../config';
 
 export default function LandingPage() {
   const handleLogin = () => {
-    window.location.href = 'http://13.239.95.169:8000/api/auth/login';
+    window.location.href = API_ENDPOINTS.AUTH.LOGIN;
   };
 
   return (

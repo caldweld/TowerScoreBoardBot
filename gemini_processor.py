@@ -15,7 +15,7 @@ model = genai.GenerativeModel('gemini-1.5-pro')
 
 def download_image(image_url: str) -> Image.Image:
     """Download image from URL and return PIL Image object"""
-    response = requests.get(image_url)
+    response = requests.get(image_url, timeout=20)
     response.raise_for_status()
     return Image.open(BytesIO(response.content))
 
@@ -119,14 +119,18 @@ def detect_image_type(image: Image.Image) -> dict:
 
 def validate_tier_detection(image: Image.Image, initial_classification: dict) -> dict:
     """Secondary validation to check for tier keywords in the image text"""
-    # Extract text from image to look for tier keywords
+    # Extract text from image to look for tier keywords and stats keywords
     text_prompt = """
-    Extract all text from this image. Focus on finding any tier-related keywords.
+    Extract all text from this image. Look for both stats and tier keywords.
     
-    Look specifically for:
+    Look for STATS keywords:
+    - "Coins Earned", "Cash Earned", "Damage Dealt", "Enemies Destroyed"
+    - "Waves Completed", "Upgrades Bought", "Workshop Upgrades"
+    - "Game Started", "Stones Earned", "Research Completed"
+    
+    Look for TIER keywords:
     - "Tier 1", "Tier 2", "Tier 3", etc.
     - "Tier Progress"
-    - Any mention of tiers or tier numbers
     
     Return ONLY the text you can read from the image, nothing else.
     """
@@ -134,33 +138,55 @@ def validate_tier_detection(image: Image.Image, initial_classification: dict) ->
     try:
         text_response = model.generate_content([text_prompt, image])
         extracted_text = text_response.text.strip().lower()
-        print(f"[DEBUG] Extracted text for tier validation: {extracted_text}")
+        print(f"[DEBUG] Extracted text for validation: {extracted_text}")
+        
+        # Check for stats keywords
+        stats_keywords = ["coins earned", "cash earned", "damage dealt", "enemies destroyed", 
+                         "waves completed", "upgrades bought", "workshop upgrades", 
+                         "game started", "stones earned", "research completed", "lab coins spent",
+                         "free upgrades", "interest earned", "orb kills", "death ray kills",
+                         "thorn damage", "waves skipped"]
         
         # Check for tier keywords
         tier_keywords = ["tier 1", "tier 2", "tier 3", "tier 4", "tier 5", "tier 6", "tier 7", "tier 8", 
                         "tier 9", "tier 10", "tier 11", "tier 12", "tier 13", "tier 14", "tier 15", 
                         "tier 16", "tier 17", "tier 18", "tier progress"]
         
+        found_stats_keywords = [keyword for keyword in stats_keywords if keyword in extracted_text]
         found_tier_keywords = [keyword for keyword in tier_keywords if keyword in extracted_text]
         
-        if found_tier_keywords:
-            print(f"[DEBUG] Found tier keywords: {found_tier_keywords}")
+        print(f"[DEBUG] Found stats keywords: {found_stats_keywords}")
+        print(f"[DEBUG] Found tier keywords: {found_tier_keywords}")
+        
+        # Decision logic: If it has stats keywords, it's a stats image (even if it also has tier data)
+        if found_stats_keywords:
+            print(f"[DEBUG] Found stats keywords, classifying as stats image")
+            return {
+                "image_type": "stats",
+                "confidence": 0.95,
+                "reason": f"Found stats keywords: {', '.join(found_stats_keywords[:3])}..."
+            }
+        
+        # Only classify as tier if it has tier keywords AND no stats keywords
+        elif found_tier_keywords:
+            print(f"[DEBUG] Found tier keywords but no stats keywords, classifying as tier image")
             return {
                 "image_type": "tier",
                 "confidence": 0.95,
                 "reason": f"Found tier keywords: {', '.join(found_tier_keywords)}"
             }
         
-        # If no tier keywords found, it's not a tier image
-        print(f"[DEBUG] No tier keywords found, not a tier image")
-        return {
-            "image_type": "stats",
-            "confidence": 0.9,
-            "reason": "No tier keywords found in image text"
-        }
+        # If no keywords found, it's not a valid game image
+        else:
+            print(f"[DEBUG] No stats or tier keywords found")
+            return {
+                "image_type": "invalid",
+                "confidence": 0.9,
+                "reason": "No stats or tier keywords found in image text"
+            }
         
     except Exception as e:
-        print(f"[DEBUG] Error in tier validation: {e}")
+        print(f"[DEBUG] Error in validation: {e}")
         return initial_classification
 
 

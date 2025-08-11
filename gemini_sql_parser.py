@@ -21,8 +21,7 @@ DATABASE_URL = (
     f"postgresql+psycopg2://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 )
 
-print(f"[DEBUG] Database URL: {DATABASE_URL}")
-print(f"[DEBUG] Using host: {POSTGRES_HOST}, port: {POSTGRES_PORT}, db: {POSTGRES_DB}")
+# Avoid logging full DB URL in production
 
 engine = create_engine(DATABASE_URL, echo=False, future=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
