@@ -58,8 +58,8 @@ class StatsCog(commands.Cog):
         processing_msg = await ctx.send("🔄 Processing image... Please wait.")
         
         try:
-            # Process image with Gemini
-            gemini_result = process_image(attachment.url)
+            # Process image with Gemini, force stats classification for this command
+            gemini_result = process_image(attachment.url, force_type="stats")
             
             if not gemini_result["success"]:
                 await processing_msg.edit(content=f"❌ Failed to process image: {gemini_result.get('error', 'Unknown error')}")

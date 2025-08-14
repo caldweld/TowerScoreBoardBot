@@ -490,8 +490,8 @@ async def uploadwaves(ctx):
     processing_msg = await ctx.send("🔄 Processing tier image... Please wait.")
     
     try:
-        # Process image with Gemini
-        gemini_result = process_image(attachment.url)
+        # Process image with Gemini, force tier classification for this command
+        gemini_result = process_image(attachment.url, force_type="tier")
         
         if not gemini_result["success"]:
             await processing_msg.edit(content=f"❌ Failed to process image: {gemini_result.get('error', 'Unknown error')}")

@@ -154,17 +154,26 @@ def validate_tier_detection(image: Image.Image, initial_classification: dict) ->
         
         found_stats_keywords = [keyword for keyword in stats_keywords if keyword in extracted_text]
         found_tier_keywords = [keyword for keyword in tier_keywords if keyword in extracted_text]
+
+        # Stronger tier signals: multiple distinct tier numbers, explicit "tier progress",
+        # or repeated occurrences of both "wave" and "coins"
+        tier_num_matches = re.findall(r"tier\s*(\d{1,2})", extracted_text)
+        distinct_tier_numbers = {int(n) for n in tier_num_matches if n.isdigit() and 1 <= int(n) <= 18}
+        has_tier_progress = "tier progress" in extracted_text
+        wave_count = len(re.findall(r"\bwave[s]?:", extracted_text)) + len(re.findall(r"\bwave[s]?\b", extracted_text))
+        coins_count = len(re.findall(r"\bcoin[s]?:", extracted_text)) + len(re.findall(r"\bcoin[s]?\b", extracted_text))
+        strong_tier_signal = has_tier_progress or len(distinct_tier_numbers) >= 3 or (wave_count >= 3 and coins_count >= 3)
         
         print(f"[DEBUG] Found stats keywords: {found_stats_keywords}")
         print(f"[DEBUG] Found tier keywords: {found_tier_keywords}")
         
-        # Decision logic: Prefer tier if any tier keywords are present
-        if found_tier_keywords:
-            print(f"[DEBUG] Found tier keywords, classifying as tier image")
+        # Decision logic: Prefer tier only when strong tier signals are present.
+        if strong_tier_signal:
+            print(f"[DEBUG] Strong tier signal (tiers={sorted(list(distinct_tier_numbers))}, tier_progress={has_tier_progress}, waves={wave_count}, coins={coins_count}) → classifying as tier")
             return {
                 "image_type": "tier",
                 "confidence": 0.95,
-                "reason": f"Found tier keywords: {', '.join(found_tier_keywords[:3])}..."
+                "reason": "Strong tier indicators present"
             }
 
         # Otherwise, classify as stats if stats keywords are present
@@ -174,6 +183,15 @@ def validate_tier_detection(image: Image.Image, initial_classification: dict) ->
                 "image_type": "stats",
                 "confidence": 0.95,
                 "reason": f"Found stats keywords: {', '.join(found_stats_keywords[:3])}..."
+            }
+
+        # If weak tier indicators exist without stats, allow tier classification with lower confidence
+        elif found_tier_keywords:
+            print(f"[DEBUG] Weak tier indicators found without stats → classifying as tier (low confidence)")
+            return {
+                "image_type": "tier",
+                "confidence": 0.7,
+                "reason": f"Tier indicators present: {', '.join(found_tier_keywords[:3])}"
             }
         
         # If no keywords found, it's not a valid game image
@@ -312,7 +330,7 @@ def extract_tier_data(image: Image.Image) -> dict:
         print(f"[DEBUG] Error in tier extraction: {e}")
         return {"error": f"Failed to extract tier data: {str(e)}"}
 
-def process_image(image_url: str) -> dict:
+def process_image(image_url: str, force_type: str = None) -> dict:
     """Main function to process any game screenshot"""
     print(f"[DEBUG] Processing image: {image_url}")
     
@@ -337,10 +355,16 @@ def process_image(image_url: str) -> dict:
             "data": None
         }
         
-        # Extract data based on type
-        if validated_result["image_type"] == "stats":
+        # Allow callers to force a specific type
+        if force_type in ("stats", "tier"):
+            print(f"[DEBUG] Force type override requested: {force_type}")
+            result["image_type"] = force_type
+            result["reason"] = f"Forced as {force_type} by caller"
+
+        # Extract data based on (possibly forced) type
+        if result["image_type"] == "stats":
             result["data"] = extract_stats_data(image)
-        elif validated_result["image_type"] == "tier":
+        elif result["image_type"] == "tier":
             result["data"] = extract_tier_data(image)
         else:
             result["data"] = {"error": "Invalid image type"}
