@@ -119,94 +119,48 @@ def detect_image_type(image: Image.Image) -> dict:
         }
 
 def validate_tier_detection(image: Image.Image, initial_classification: dict) -> dict:
-    """Secondary validation to check for tier keywords in the image text"""
-    # Extract text from image to look for tier keywords and stats keywords
-    text_prompt = """
-    Extract all text from this image. Look for both stats and tier keywords.
-    
-    Look for STATS keywords:
-    - "Coins Earned", "Cash Earned", "Damage Dealt", "Enemies Destroyed"
-    - "Waves Completed", "Upgrades Bought", "Workshop Upgrades"
-    - "Game Started", "Stones Earned", "Research Completed"
-    
-    Look for TIER keywords:
-    - "Tier 1", "Tier 2", "Tier 3", etc.
-    - "Tier Progress"
-    
-    Return ONLY the text you can read from the image, nothing else.
-    """
-    
+    """Strict validation: Stats if 'Game Started'+'Coins Earned'+'Cash Earned'; else require ALL tiers 1-18, otherwise invalid."""
+    text_prompt = (
+        "Extract ALL readable text from this image. Return ONLY the raw text, no formatting, no JSON, no extra words."
+    )
     try:
         text_response = model.generate_content([text_prompt, image])
         extracted_text = text_response.text.strip().lower()
         print(f"[DEBUG] Extracted text for validation: {extracted_text}")
-        
-        # Check for stats keywords
-        stats_keywords = ["coins earned", "cash earned", "damage dealt", "enemies destroyed", 
-                         "waves completed", "upgrades bought", "workshop upgrades", 
-                         "game started", "stones earned", "research completed", "lab coins spent",
-                         "free upgrades", "interest earned", "orb kills", "death ray kills",
-                         "thorn damage", "waves skipped"]
-        
-        # Check for tier keywords
-        tier_keywords = ["tier 1", "tier 2", "tier 3", "tier 4", "tier 5", "tier 6", "tier 7", "tier 8", 
-                        "tier 9", "tier 10", "tier 11", "tier 12", "tier 13", "tier 14", "tier 15", 
-                        "tier 16", "tier 17", "tier 18", "tier progress"]
-        
-        found_stats_keywords = [keyword for keyword in stats_keywords if keyword in extracted_text]
-        found_tier_keywords = [keyword for keyword in tier_keywords if keyword in extracted_text]
 
-        # Stronger tier signals: multiple distinct tier numbers, or explicit "tier progress"
-        tier_num_matches = re.findall(r"tier\s*(\d{1,2})", extracted_text)
-        distinct_tier_numbers = {int(n) for n in tier_num_matches if n.isdigit() and 1 <= int(n) <= 18}
-        has_tier_progress = "tier progress" in extracted_text
-        # Basic presence checks for wave/coins words
-        wave_present = bool(re.search(r"\bwave[s]?\b", extracted_text))
-        coin_present = bool(re.search(r"\bcoin[s]?\b", extracted_text))
-        strong_tier_signal = has_tier_progress or len(distinct_tier_numbers) >= 3
-        
-        print(f"[DEBUG] Found stats keywords: {found_stats_keywords}")
-        print(f"[DEBUG] Found tier keywords: {found_tier_keywords}")
-        
-        # Decision logic
-        if strong_tier_signal:
-            print(f"[DEBUG] Strong tier signal (tiers={sorted(list(distinct_tier_numbers))}, tier_progress={has_tier_progress}) → classifying as tier")
-            return {
-                "image_type": "tier",
-                "confidence": 0.95,
-                "reason": "Strong tier indicators present"
-            }
-        # Prefer stats if any stats keywords are present (unless strong tier above)
-        elif found_stats_keywords:
-            print(f"[DEBUG] Stats keywords present → classifying as stats")
+        # 1) Stats check: must include all three labels
+        has_game_started = "game started" in extracted_text
+        has_coins_earned = "coins earned" in extracted_text
+        has_cash_earned = "cash earned" in extracted_text
+        if has_game_started and has_coins_earned and has_cash_earned:
+            print("[DEBUG] Detected required stats labels → classifying as stats")
             return {
                 "image_type": "stats",
-                "confidence": 0.95,
-                "reason": f"Found stats keywords: {', '.join(found_stats_keywords[:3])}..."
+                "confidence": 0.99,
+                "reason": "Detected 'Game Started', 'Coins Earned', and 'Cash Earned'"
             }
-        # Weak tier fallback only when no stats keywords
-        elif not found_stats_keywords and found_tier_keywords and len(distinct_tier_numbers) >= 2 and wave_present and coin_present:
-            print(f"[DEBUG] Weak but sufficient tier indicators (tiers={sorted(list(distinct_tier_numbers))}, wave={wave_present}, coin={coin_present}) → classifying as tier (low confidence)")
+
+        # 2) Tier check: require all tiers 1..18 present
+        missing_tiers = []
+        for i in range(1, 19):
+            if f"tier {i}" not in extracted_text:
+                missing_tiers.append(i)
+        if not missing_tiers:
+            print("[DEBUG] Detected all tier labels 1..18 → classifying as tier")
             return {
                 "image_type": "tier",
-                "confidence": 0.7,
-                "reason": "Tier 1/2+ with wave & coins present"
+                "confidence": 0.99,
+                "reason": "Detected all tiers 1-18"
             }
-        elif found_tier_keywords:
-            print(f"[DEBUG] Tier keywords present but weak → classifying as tier (low confidence)")
-            return {
-                "image_type": "tier",
-                "confidence": 0.7,
-                "reason": f"Tier indicators present: {', '.join(found_tier_keywords[:3])}"
-            }
-        else:
-            print(f"[DEBUG] No stats or tier keywords found → invalid")
-            return {
-                "image_type": "invalid",
-                "confidence": 0.9,
-                "reason": "No stats or tier keywords found in image text"
-            }
-        
+
+        # 3) Otherwise invalid
+        print(f"[DEBUG] Missing tier labels: {missing_tiers} → invalid")
+        return {
+            "image_type": "invalid",
+            "confidence": 0.95,
+            "reason": f"Missing tier labels: {', '.join(map(str, missing_tiers))}"
+        }
+
     except Exception as e:
         print(f"[DEBUG] Error in validation: {e}")
         return initial_classification
