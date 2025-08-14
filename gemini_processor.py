@@ -168,7 +168,7 @@ def validate_tier_detection(image: Image.Image, initial_classification: dict) ->
         print(f"[DEBUG] Found stats keywords: {found_stats_keywords}")
         print(f"[DEBUG] Found tier keywords: {found_tier_keywords}")
         
-        # Decision logic: Prefer tier only when strong tier signals are present.
+        # Decision logic
         if strong_tier_signal:
             print(f"[DEBUG] Strong tier signal (tiers={sorted(list(distinct_tier_numbers))}, tier_progress={has_tier_progress}) → classifying as tier")
             return {
@@ -176,18 +176,13 @@ def validate_tier_detection(image: Image.Image, initial_classification: dict) ->
                 "confidence": 0.95,
                 "reason": "Strong tier indicators present"
             }
-
-        # Otherwise, classify as stats if stats keywords are present
-        elif found_stats_keywords:
-            print(f"[DEBUG] Found stats keywords, classifying as stats image")
+        elif found_stats_keywords and not found_tier_keywords:
+            print(f"[DEBUG] Stats-only keywords found → classifying as stats")
             return {
                 "image_type": "stats",
                 "confidence": 0.95,
                 "reason": f"Found stats keywords: {', '.join(found_stats_keywords[:3])}..."
             }
-
-        # If weak tier indicators exist without stats, only allow tier classification when
-        # at least two distinct tier numbers are found AND both wave and coin words appear.
         elif found_tier_keywords and len(distinct_tier_numbers) >= 2 and wave_present and coin_present:
             print(f"[DEBUG] Weak but sufficient tier indicators (tiers={sorted(list(distinct_tier_numbers))}, wave={wave_present}, coin={coin_present}) → classifying as tier (low confidence)")
             return {
@@ -195,19 +190,22 @@ def validate_tier_detection(image: Image.Image, initial_classification: dict) ->
                 "confidence": 0.7,
                 "reason": "Tier 1/2+ with wave & coins present"
             }
-        
-        # Default to stats when neither strong tier nor sufficient weak-tier signals are present
-        else:
-            print("[DEBUG] Defaulting to stats (no strong tier signals and insufficient weak-tier signals)")
+        elif found_stats_keywords:
+            print(f"[DEBUG] Stats keywords present → classifying as stats")
             return {
                 "image_type": "stats",
-                "confidence": 0.7,
-                "reason": "Defaulted to stats due to insufficient tier indicators"
+                "confidence": 0.9,
+                "reason": f"Found stats keywords: {', '.join(found_stats_keywords[:3])}..."
             }
-        
-        # If no keywords found, it's not a valid game image
+        elif found_tier_keywords:
+            print(f"[DEBUG] Tier keywords present but weak → classifying as tier (low confidence)")
+            return {
+                "image_type": "tier",
+                "confidence": 0.7,
+                "reason": f"Tier indicators present: {', '.join(found_tier_keywords[:3])}"
+            }
         else:
-            print(f"[DEBUG] No stats or tier keywords found")
+            print(f"[DEBUG] No stats or tier keywords found → invalid")
             return {
                 "image_type": "invalid",
                 "confidence": 0.9,
