@@ -158,22 +158,22 @@ def validate_tier_detection(image: Image.Image, initial_classification: dict) ->
         print(f"[DEBUG] Found stats keywords: {found_stats_keywords}")
         print(f"[DEBUG] Found tier keywords: {found_tier_keywords}")
         
-        # Decision logic: If it has stats keywords, it's a stats image (even if it also has tier data)
-        if found_stats_keywords:
+        # Decision logic: Prefer tier if any tier keywords are present
+        if found_tier_keywords:
+            print(f"[DEBUG] Found tier keywords, classifying as tier image")
+            return {
+                "image_type": "tier",
+                "confidence": 0.95,
+                "reason": f"Found tier keywords: {', '.join(found_tier_keywords[:3])}..."
+            }
+
+        # Otherwise, classify as stats if stats keywords are present
+        elif found_stats_keywords:
             print(f"[DEBUG] Found stats keywords, classifying as stats image")
             return {
                 "image_type": "stats",
                 "confidence": 0.95,
                 "reason": f"Found stats keywords: {', '.join(found_stats_keywords[:3])}..."
-            }
-        
-        # Only classify as tier if it has tier keywords AND no stats keywords
-        elif found_tier_keywords:
-            print(f"[DEBUG] Found tier keywords but no stats keywords, classifying as tier image")
-            return {
-                "image_type": "tier",
-                "confidence": 0.95,
-                "reason": f"Found tier keywords: {', '.join(found_tier_keywords)}"
             }
         
         # If no keywords found, it's not a valid game image
