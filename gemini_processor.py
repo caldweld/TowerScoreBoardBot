@@ -1,5 +1,6 @@
 import google.generativeai as genai
 import os
+import re
 import json
 import requests
 from PIL import Image
@@ -155,21 +156,21 @@ def validate_tier_detection(image: Image.Image, initial_classification: dict) ->
         found_stats_keywords = [keyword for keyword in stats_keywords if keyword in extracted_text]
         found_tier_keywords = [keyword for keyword in tier_keywords if keyword in extracted_text]
 
-        # Stronger tier signals: multiple distinct tier numbers, explicit "tier progress",
-        # or repeated occurrences of both "wave" and "coins"
+        # Stronger tier signals: multiple distinct tier numbers, or explicit "tier progress"
         tier_num_matches = re.findall(r"tier\s*(\d{1,2})", extracted_text)
         distinct_tier_numbers = {int(n) for n in tier_num_matches if n.isdigit() and 1 <= int(n) <= 18}
         has_tier_progress = "tier progress" in extracted_text
-        wave_count = len(re.findall(r"\bwave[s]?:", extracted_text)) + len(re.findall(r"\bwave[s]?\b", extracted_text))
-        coins_count = len(re.findall(r"\bcoin[s]?:", extracted_text)) + len(re.findall(r"\bcoin[s]?\b", extracted_text))
-        strong_tier_signal = has_tier_progress or len(distinct_tier_numbers) >= 3 or (wave_count >= 3 and coins_count >= 3)
+        # Basic presence checks for wave/coins words
+        wave_present = bool(re.search(r"\bwave[s]?\b", extracted_text))
+        coin_present = bool(re.search(r"\bcoin[s]?\b", extracted_text))
+        strong_tier_signal = has_tier_progress or len(distinct_tier_numbers) >= 3
         
         print(f"[DEBUG] Found stats keywords: {found_stats_keywords}")
         print(f"[DEBUG] Found tier keywords: {found_tier_keywords}")
         
         # Decision logic: Prefer tier only when strong tier signals are present.
         if strong_tier_signal:
-            print(f"[DEBUG] Strong tier signal (tiers={sorted(list(distinct_tier_numbers))}, tier_progress={has_tier_progress}, waves={wave_count}, coins={coins_count}) → classifying as tier")
+            print(f"[DEBUG] Strong tier signal (tiers={sorted(list(distinct_tier_numbers))}, tier_progress={has_tier_progress}) → classifying as tier")
             return {
                 "image_type": "tier",
                 "confidence": 0.95,
@@ -185,13 +186,23 @@ def validate_tier_detection(image: Image.Image, initial_classification: dict) ->
                 "reason": f"Found stats keywords: {', '.join(found_stats_keywords[:3])}..."
             }
 
-        # If weak tier indicators exist without stats, allow tier classification with lower confidence
-        elif found_tier_keywords:
-            print(f"[DEBUG] Weak tier indicators found without stats → classifying as tier (low confidence)")
+        # If weak tier indicators exist without stats, only allow tier classification when
+        # at least two distinct tier numbers are found AND both wave and coin words appear.
+        elif found_tier_keywords and len(distinct_tier_numbers) >= 2 and wave_present and coin_present:
+            print(f"[DEBUG] Weak but sufficient tier indicators (tiers={sorted(list(distinct_tier_numbers))}, wave={wave_present}, coin={coin_present}) → classifying as tier (low confidence)")
             return {
                 "image_type": "tier",
                 "confidence": 0.7,
-                "reason": f"Tier indicators present: {', '.join(found_tier_keywords[:3])}"
+                "reason": "Tier 1/2+ with wave & coins present"
+            }
+        
+        # Default to stats when neither strong tier nor sufficient weak-tier signals are present
+        else:
+            print("[DEBUG] Defaulting to stats (no strong tier signals and insufficient weak-tier signals)")
+            return {
+                "image_type": "stats",
+                "confidence": 0.7,
+                "reason": "Defaulted to stats due to insufficient tier indicators"
             }
         
         # If no keywords found, it's not a valid game image
