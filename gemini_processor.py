@@ -176,26 +176,21 @@ def validate_tier_detection(image: Image.Image, initial_classification: dict) ->
                 "confidence": 0.95,
                 "reason": "Strong tier indicators present"
             }
-        elif found_stats_keywords and not found_tier_keywords:
-            print(f"[DEBUG] Stats-only keywords found → classifying as stats")
+        # Prefer stats if any stats keywords are present (unless strong tier above)
+        elif found_stats_keywords:
+            print(f"[DEBUG] Stats keywords present → classifying as stats")
             return {
                 "image_type": "stats",
                 "confidence": 0.95,
                 "reason": f"Found stats keywords: {', '.join(found_stats_keywords[:3])}..."
             }
-        elif found_tier_keywords and len(distinct_tier_numbers) >= 2 and wave_present and coin_present:
+        # Weak tier fallback only when no stats keywords
+        elif not found_stats_keywords and found_tier_keywords and len(distinct_tier_numbers) >= 2 and wave_present and coin_present:
             print(f"[DEBUG] Weak but sufficient tier indicators (tiers={sorted(list(distinct_tier_numbers))}, wave={wave_present}, coin={coin_present}) → classifying as tier (low confidence)")
             return {
                 "image_type": "tier",
                 "confidence": 0.7,
                 "reason": "Tier 1/2+ with wave & coins present"
-            }
-        elif found_stats_keywords:
-            print(f"[DEBUG] Stats keywords present → classifying as stats")
-            return {
-                "image_type": "stats",
-                "confidence": 0.9,
-                "reason": f"Found stats keywords: {', '.join(found_stats_keywords[:3])}..."
             }
         elif found_tier_keywords:
             print(f"[DEBUG] Tier keywords present but weak → classifying as tier (low confidence)")
