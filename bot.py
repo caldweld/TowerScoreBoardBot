@@ -515,6 +515,58 @@ async def leaderwaves(ctx):
     finally:
         session.close()
 
+@bot.command(name="leadertier", help="Top 10 users for a specific tier, showing Waves and Coins.")
+async def leadertier(ctx, tier: str):
+    """Show the Top 10 users for a given tier with both waves and coins.
+
+    Usage: !leadertier t1  (or !leadertier 1)
+    Columns: Player | Waves | Coins | Tier
+    Sorted by Waves descending.
+    """
+    # Parse tier argument as tN or N
+    match = re.match(r"^t?(\d{1,2})$", tier.lower())
+    if not match:
+        await ctx.send("❌ Invalid tier format. Use `!leadertier t1` or `!leadertier 1` (1-18).")
+        return
+    tier_num = int(match.group(1))
+    if not (1 <= tier_num <= 18):
+        await ctx.send("❌ Tier number must be between 1 and 18.")
+        return
+
+    session = get_db_session()
+    try:
+        users = session.query(UserData).all()
+        results: list[tuple[str, int, str, int]] = []  # (name, wave, coins_display, tier)
+
+        for user in users:
+            tier_str = getattr(user, f"T{tier_num}")
+            if not tier_str:
+                continue
+            wave_value, _coins_numeric = parse_wave_coins(tier_str)
+            if wave_value <= 0:
+                continue
+            coins_match = re.search(r"Coins:\s*(\S+)", tier_str)
+            coins_display = coins_match.group(1) if coins_match else "0"
+            results.append((user.discordname, wave_value, coins_display, tier_num))
+
+        # Sort by waves desc, take top 10
+        results.sort(key=lambda r: r[1], reverse=True)
+        header = "Player | Waves | Coins | Tier"
+        lines = [header, "-" * len(header)]
+        for name, wave_value, coins_display, tier_idx in results[:10]:
+            lines.append(f"{name} | {wave_value} | {coins_display} | T{tier_idx}")
+
+        if len(lines) == 2:
+            await ctx.send(f"No data found for Tier {tier_num} yet.")
+            return
+
+        leaderboard_text = "\n".join(lines)
+        await ctx.send(f"🏅 Leadertier (T{tier_num}) — Top 10:\n```\n{leaderboard_text}```")
+    except Exception as e:
+        await ctx.send(f"❌ Error retrieving tier leaderboard: {e}")
+    finally:
+        session.close()
+
 async def main():
     # await bot.load_extension("cogs.stats_cog")  # Mothballed while building new commands
     await bot.start(TOKEN)
