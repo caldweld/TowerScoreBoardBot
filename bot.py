@@ -23,6 +23,25 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+class UploadOnlyHelp(commands.MinimalHelpCommand):
+    async def send_bot_help(self, mapping):
+        ctx = self.context
+        embed = discord.Embed(
+            title="Tower Scoreboard Bot — Help",
+            color=0x2f3136
+        )
+        embed.description = (
+            "Overview: Upload a single game screenshot. The bot auto-detects whether it’s stats or tier data and saves it."
+        )
+        embed.add_field(
+            name="How to use",
+            value="• Type `!upload`\n• Attach a clear PNG/JPG of your game screen\n• Send the message; you’ll get a processing update and a summary",
+            inline=False
+        )
+        await ctx.send(embed=embed)
+
+bot.help_command = UploadOnlyHelp()
+
 _user_locks = {}
 
 def get_user_lock(user_id: str) -> asyncio.Lock:
