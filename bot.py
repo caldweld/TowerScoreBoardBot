@@ -41,8 +41,10 @@ class UploadOnlyHelp(commands.MinimalHelpCommand):
         embed.add_field(
             name="Leaderboards",
             value=(
+                "`!leader` — Overall ranking by highest tier achieved (shows wave/coins)\n"
                 "`!leadercoins` — Top 10 highest coins per user (shows tier)\n"
-                "`!leaderwaves` — Top 10 highest wave per user (shows tier)"
+                "`!leaderwaves` — Top 10 highest wave per user (shows tier)\n"
+                "`!leadertier` — Top 10 for a specific tier: `!leadertier t13`"
             ),
             inline=False
         )
@@ -564,6 +566,59 @@ async def leadertier(ctx, tier: str):
         await ctx.send(f"🏅 Leadertier (T{tier_num}) — Top 10:\n```\n{leaderboard_text}```")
     except Exception as e:
         await ctx.send(f"❌ Error retrieving tier leaderboard: {e}")
+    finally:
+        session.close()
+
+@bot.command(name="leader", help="Overall ranking by highest tier achieved, with that tier's waves/coins.")
+async def leader(ctx):
+    """Show each user's highest tier achieved and the wave/coins at that tier.
+
+    Ranking is by highest tier number (descending). If multiple users share the
+    same highest tier, tie-break by that tier's wave (desc), then coins (desc).
+    Columns: Player | Tier | Waves | Coins
+    """
+    session = get_db_session()
+    try:
+        users = session.query(UserData).all()
+        rows: list[tuple[str, int, int, float, str]] = []
+        # (name, best_tier_index, wave_value, coins_value_numeric, coins_display)
+
+        for user in users:
+            best_tier_index = 0
+            best_wave = -1
+            best_coins_numeric = -1.0
+            best_coins_display = "0"
+
+            # Find the highest tier that has any data
+            for tier_index in range(18, 0, -1):
+                tier_str = getattr(user, f"T{tier_index}")
+                if not tier_str:
+                    continue
+                wave_value, coins_value_numeric = parse_wave_coins(tier_str)
+                # Consider a tier as achieved if there's any non-zero data
+                if wave_value > 0 or coins_value_numeric > 0:
+                    best_tier_index = tier_index
+                    best_wave = wave_value
+                    best_coins_numeric = coins_value_numeric
+                    m = re.search(r"Coins:\s*(\S+)", tier_str)
+                    best_coins_display = m.group(1) if m else "0"
+                    break
+
+            rows.append((user.discordname, best_tier_index, best_wave, best_coins_numeric, best_coins_display))
+
+        # Sort by: highest tier desc, then wave desc, then coins desc
+        rows.sort(key=lambda r: (r[1], r[2], r[3]), reverse=True)
+
+        header = "Player | Tier | Waves | Coins"
+        lines = [header, "-" * len(header)]
+        for name, tier_idx, wave, _coins_num, coins_disp in rows[:25]:
+            tier_label = f"T{tier_idx}" if tier_idx else "-"
+            lines.append(f"{name} | {tier_label} | {wave if wave >= 0 else 0} | {coins_disp}")
+
+        leaderboard_text = "\n".join(lines)
+        await ctx.send(f"🏆 Leader — Overall by Highest Tier:\n```\n{leaderboard_text}```")
+    except Exception as e:
+        await ctx.send(f"❌ Error retrieving leader: {e}")
     finally:
         session.close()
 
