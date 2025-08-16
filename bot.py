@@ -38,6 +38,14 @@ class UploadOnlyHelp(commands.MinimalHelpCommand):
             value="• Type `!upload`\n• Attach a clear PNG/JPG of your game screen\n• Send the message; you’ll get a processing update and a summary",
             inline=False
         )
+        embed.add_field(
+            name="Leaderboards",
+            value=(
+                "`!leadercoins` — Top 10 highest coins per user (shows tier)\n"
+                "`!leaderwaves` — Top 10 highest wave per user (shows tier)"
+            ),
+            inline=False
+        )
         await ctx.send(embed=embed)
 
 bot.help_command = UploadOnlyHelp()
@@ -412,7 +420,7 @@ async def upload(ctx):
 
 ## MOTHBALLED: uploadwaves moved to mothballed_commands.py
 
-@bot.command(name="leadercoins", help="Show each user's highest coins across all tiers (Top 10).")
+@bot.command(name="leadercoins", help="Show each user's highest coins across all tiers (Top 10), with tier.")
 async def leadercoins(ctx):
     """Display the top 10 users by their single highest coins value across any tier.
 
@@ -425,10 +433,11 @@ async def leadercoins(ctx):
     try:
         users = session.query(UserData).all()
 
-        per_user: list[tuple[str, float, str]] = []
+        per_user: list[tuple[str, float, str, int]] = []
         for user in users:
             max_coins_value = -1.0
             max_coins_display = "0"
+            best_tier_index = 0
 
             for tier_index in range(1, 19):
                 tier_str = getattr(user, f"T{tier_index}")
@@ -441,16 +450,18 @@ async def leadercoins(ctx):
                     # Preserve original display (e.g., 16.78B)
                     m = re.search(r"Coins:\s*(\S+)", tier_str)
                     max_coins_display = m.group(1) if m else "0"
+                    best_tier_index = tier_index
 
-            per_user.append((user.discordname, max_coins_value, max_coins_display))
+            per_user.append((user.discordname, max_coins_value, max_coins_display, best_tier_index))
 
         # Sort by numeric coins, descending
         per_user.sort(key=lambda x: x[1], reverse=True)
 
-        header = "Player | Highest Coins"
+        header = "Player | Tier | Highest Coins"
         lines = [header, "-" * len(header)]
-        for name, _, coins_str in per_user[:10]:
-            lines.append(f"{name} | {coins_str}")
+        for name, _, coins_str, tier_idx in per_user[:10]:
+            tier_label = f"T{tier_idx}" if tier_idx else "-"
+            lines.append(f"{name} | {tier_label} | {coins_str}")
 
         leaderboard_text = "\n".join(lines)
         await ctx.send(f"💰 Leadercoins (Top 10):\n```\n{leaderboard_text}```")
@@ -459,7 +470,7 @@ async def leadercoins(ctx):
     finally:
         session.close()
 
-@bot.command(name="leaderwaves", help="Show each user's highest wave across all tiers (Top 10).")
+@bot.command(name="leaderwaves", help="Show each user's highest wave across all tiers (Top 10), with tier.")
 async def leaderwaves(ctx):
     """Display the top 10 users by their single highest wave across any tier.
 
@@ -472,9 +483,10 @@ async def leaderwaves(ctx):
     try:
         users = session.query(UserData).all()
 
-        per_user: list[tuple[str, int]] = []
+        per_user: list[tuple[str, int, int]] = []
         for user in users:
             max_wave_value = -1
+            best_tier_index = 0
 
             for tier_index in range(1, 19):
                 tier_str = getattr(user, f"T{tier_index}")
@@ -483,16 +495,18 @@ async def leaderwaves(ctx):
                 wave_value, _ = parse_wave_coins(tier_str)
                 if wave_value > max_wave_value:
                     max_wave_value = wave_value
+                    best_tier_index = tier_index
 
-            per_user.append((user.discordname, max_wave_value))
+            per_user.append((user.discordname, max_wave_value, best_tier_index))
 
         # Sort by wave, descending
         per_user.sort(key=lambda x: x[1], reverse=True)
 
-        header = "Player | Highest Wave"
+        header = "Player | Tier | Highest Wave"
         lines = [header, "-" * len(header)]
-        for name, wave in per_user[:10]:
-            lines.append(f"{name} | {wave}")
+        for name, wave, tier_idx in per_user[:10]:
+            tier_label = f"T{tier_idx}" if tier_idx else "-"
+            lines.append(f"{name} | {tier_label} | {wave}")
 
         leaderboard_text = "\n".join(lines)
         await ctx.send(f"🌊 Leaderwaves (Top 10):\n```\n{leaderboard_text}```")
