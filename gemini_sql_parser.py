@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from dashboard_backend.models import UserStats, UserData, UserDataHistory
 from dotenv import load_dotenv

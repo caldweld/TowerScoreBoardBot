@@ -1,9 +1,6 @@
 import discord
 import os
-import requests
 import re
-from io import BytesIO
-from PIL import Image, ImageDraw, ImageFont
 from datetime import datetime
 from dotenv import load_dotenv
 from discord.ext import commands
@@ -26,18 +23,34 @@ intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 def get_db_session():
+    """Create and return a new database session.
+    
+    Returns:
+        Session: A new SQLAlchemy database session instance.
+    """
     return SessionLocal()
 
 
-
 def parse_wave_coins(tier_str):
+    """Parse wave number and coin amount from a tier string.
+    
+    Args:
+        tier_str (str): Tier string in format "Wave: X Coins: Y"
+        
+    Returns:
+        tuple: (wave_number, coin_amount) where wave is int and coins is float
+    """
+    # Extract wave number using regex
     wave_match = re.search(r"Wave:\s*(\d+)", tier_str)
+    # Extract coins with optional suffix (K, M, B, T, Q)
     coins_match = re.search(r"Coins:\s*([\d.,]+[KMBTQ]?)", tier_str)
 
     wave = int(wave_match.group(1)) if wave_match else 0
 
     coins_str = coins_match.group(1) if coins_match else "0"
     multiplier = 1
+    
+    # Convert suffix to numeric multiplier
     if coins_str.endswith("K"):
         multiplier = 1_000
         coins_str = coins_str[:-1]
@@ -62,6 +75,16 @@ def parse_wave_coins(tier_str):
     return wave, coins
 
 def save_user_data(discord_id, discord_name, tier_data):
+    """Save or update user tier data in the database.
+    
+    Args:
+        discord_id (str): Discord user ID
+        discord_name (str): Discord username
+        tier_data (list): List of 18 tier strings in "Wave: X Coins: Y" format
+        
+    Updates existing user data or creates new user record.
+    Also adds entry to history table for tracking.
+    """
     session = get_db_session()
     try:
         # Check if user already exists
@@ -97,6 +120,14 @@ def save_user_data(discord_id, discord_name, tier_data):
         session.close()
 
 def get_user_data(discord_id):
+    """Retrieve user's tier data from the database.
+    
+    Args:
+        discord_id (str): Discord user ID to look up
+        
+    Returns:
+        list: List of 18 tier strings, or None if user not found
+    """
     session = get_db_session()
     try:
         user = session.query(UserData).filter(UserData.discordid == discord_id).first()
@@ -107,15 +138,20 @@ def get_user_data(discord_id):
         session.close()
 
 def is_bot_admin(discord_id):
+    """Check if a user is a bot administrator.
+    
+    Args:
+        discord_id (str): Discord user ID to check
+        
+    Returns:
+        bool: True if user is a bot admin, False otherwise
+    """
     session = get_db_session()
     try:
         admin = session.query(BotAdmin).filter(BotAdmin.discordid == discord_id).first()
         return admin is not None
     finally:
         session.close()
-
-
-
 
 
 @bot.event
@@ -429,11 +465,13 @@ async def listbotadmins(ctx):
         session.close()
 
 
-
-
-
 @bot.command(name="upload", help="Upload any game screenshot (stats or tier) - AI will auto-detect the type.")
 async def upload(ctx):
+    """Process uploaded game screenshots using AI to auto-detect type.
+    
+    Supports both stats screenshots and tier screenshots.
+    Uses Gemini AI to extract data and saves to appropriate database table.
+    """
     if not ctx.message.attachments:
         await ctx.send("Please attach a screenshot of your game data (stats or tier).")
         return
@@ -444,19 +482,18 @@ async def upload(ctx):
     processing_msg = await ctx.send("🔄 Processing image... Please wait.")
     
     try:
-        # Process image with Gemini
+        # Process image with Gemini AI for auto-detection
         gemini_result = process_image(attachment.url)
         
         if not gemini_result["success"]:
             await processing_msg.edit(content=f"❌ Failed to process image: {gemini_result.get('error', 'Unknown error')}")
             return
         
-        # Proceed without exposing or gating on AI confidence
-        
-        # Save to database using our SQL parser
+        # Save to database using appropriate parser based on detected type
         sql_result = process_gemini_result(gemini_result, str(ctx.author.id), str(ctx.author))
         
         if sql_result["success"]:
+            # Format response based on image type
             if gemini_result["image_type"] == "stats":
                 stats_id = sql_result.get('stats_id', 'N/A')
                 improvements = sql_result.get('improvements', [])
