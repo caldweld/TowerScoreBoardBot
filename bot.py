@@ -459,6 +459,48 @@ async def leadercoins(ctx):
     finally:
         session.close()
 
+@bot.command(name="leaderwaves", help="Show each user's highest wave across all tiers (Top 10).")
+async def leaderwaves(ctx):
+    """Display the top 10 users by their single highest wave across any tier.
+
+    - Parses each user's tier strings (T1..T18)
+    - Finds the maximum wave (numeric) per user
+    - Displays the wave as an integer
+    - Sorted descending, top 10 rows
+    """
+    session = get_db_session()
+    try:
+        users = session.query(UserData).all()
+
+        per_user: list[tuple[str, int]] = []
+        for user in users:
+            max_wave_value = -1
+
+            for tier_index in range(1, 19):
+                tier_str = getattr(user, f"T{tier_index}")
+                if not tier_str:
+                    continue
+                wave_value, _ = parse_wave_coins(tier_str)
+                if wave_value > max_wave_value:
+                    max_wave_value = wave_value
+
+            per_user.append((user.discordname, max_wave_value))
+
+        # Sort by wave, descending
+        per_user.sort(key=lambda x: x[1], reverse=True)
+
+        header = "Player | Highest Wave"
+        lines = [header, "-" * len(header)]
+        for name, wave in per_user[:10]:
+            lines.append(f"{name} | {wave}")
+
+        leaderboard_text = "\n".join(lines)
+        await ctx.send(f"🌊 Leaderwaves (Top 10):\n```\n{leaderboard_text}```")
+    except Exception as e:
+        await ctx.send(f"❌ Error retrieving leaderwaves: {e}")
+    finally:
+        session.close()
+
 async def main():
     # await bot.load_extension("cogs.stats_cog")  # Mothballed while building new commands
     await bot.start(TOKEN)
