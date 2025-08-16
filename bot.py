@@ -412,6 +412,53 @@ async def upload(ctx):
 
 ## MOTHBALLED: uploadwaves moved to mothballed_commands.py
 
+@bot.command(name="leadercoins", help="Show each user's highest coins across all tiers (Top 10).")
+async def leadercoins(ctx):
+    """Display the top 10 users by their single highest coins value across any tier.
+
+    - Parses each user's tier strings (T1..T18)
+    - Finds the maximum coins value (numeric) per user
+    - Displays the preserved coin string (with suffix) for readability
+    - Sorted descending, top 10 rows
+    """
+    session = get_db_session()
+    try:
+        users = session.query(UserData).all()
+
+        per_user: list[tuple[str, float, str]] = []
+        for user in users:
+            max_coins_value = -1.0
+            max_coins_display = "0"
+
+            for tier_index in range(1, 19):
+                tier_str = getattr(user, f"T{tier_index}")
+                if not tier_str:
+                    continue
+                # Use existing parser for numeric comparison
+                _, coins_value = parse_wave_coins(tier_str)
+                if coins_value > max_coins_value:
+                    max_coins_value = coins_value
+                    # Preserve original display (e.g., 16.78B)
+                    m = re.search(r"Coins:\s*(\S+)", tier_str)
+                    max_coins_display = m.group(1) if m else "0"
+
+            per_user.append((user.discordname, max_coins_value, max_coins_display))
+
+        # Sort by numeric coins, descending
+        per_user.sort(key=lambda x: x[1], reverse=True)
+
+        header = "Player | Highest Coins"
+        lines = [header, "-" * len(header)]
+        for name, _, coins_str in per_user[:10]:
+            lines.append(f"{name} | {coins_str}")
+
+        leaderboard_text = "\n".join(lines)
+        await ctx.send(f"💰 Leadercoins (Top 10):\n```\n{leaderboard_text}```")
+    except Exception as e:
+        await ctx.send(f"❌ Error retrieving leadercoins: {e}")
+    finally:
+        session.close()
+
 async def main():
     # await bot.load_extension("cogs.stats_cog")  # Mothballed while building new commands
     await bot.start(TOKEN)
