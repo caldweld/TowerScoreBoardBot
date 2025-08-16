@@ -1,6 +1,7 @@
 import discord
 import os
 import re
+import asyncio
 from datetime import datetime
 from dotenv import load_dotenv
 from discord.ext import commands
@@ -21,6 +22,34 @@ if TOKEN is None:
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
+
+_user_locks = {}
+
+def get_user_lock(user_id: str) -> asyncio.Lock:
+    """Return an asyncio.Lock dedicated to a single user.
+
+    Ensures that concurrent uploads from the same user do not race when
+    updating shared resources like the database.
+    """
+    lock = _user_locks.get(user_id)
+    if lock is None:
+        lock = asyncio.Lock()
+        _user_locks[user_id] = lock
+    return lock
+
+async def async_process_image(image_url: str, force_type: str = None) -> dict:
+    """Run synchronous image processing in a background thread.
+
+    Offloads CPU/IO heavy work to a thread so the event loop remains responsive.
+    """
+    return await asyncio.to_thread(process_image, image_url, force_type)
+
+async def async_process_gemini_result(gemini_result: dict, discord_id: str, discord_name: str) -> dict:
+    """Run synchronous database work in a background thread.
+
+    Prevents blocking the event loop during DB operations.
+    """
+    return await asyncio.to_thread(process_gemini_result, gemini_result, discord_id, discord_name)
 
 def get_db_session():
     """Create and return a new database session.
@@ -161,107 +190,13 @@ async def on_ready():
     print(f"📊 Database connection established")
     print(f"🎯 Ready to process game screenshots!")
 
-@bot.command(name="commands", help="List all available commands and their descriptions.")
-async def commands_list(ctx):
-    """Lists all available commands and their descriptions."""
-    description = ""
-    for command in bot.commands:
-        if not command.hidden:
-            description += f"**!{command.name}**: {command.help or command.short_doc or 'No description'}\n"
-    await ctx.send(description)
+# MOTHBALLED: commands_list moved to mothballed_commands.py
 
-@bot.command(help="Show your saved tier data (waves and coins for each tier).")
-async def mydata(ctx):
-    """Shows the user their saved tier data (waves and coins for each tier)."""
-    data = get_user_data(str(ctx.author.id))
-    if data:
-        formatted = "Tier | Wave     | Coins\n" + "-----|----------|--------\n"
-        for i, entry in enumerate(data):
-            wave_match = re.search(r"Wave: (\S+)", entry)
-            coin_match = re.search(r"Coins: (\S+)", entry)
-            wave = wave_match.group(1) if wave_match else "0"
-            coins = coin_match.group(1) if coin_match else "0"
-            formatted += f"T{i+1:<3} | {wave:<8} | {coins}\n"
-        await ctx.send(f"📊 Your saved tiers:\n```\n{formatted}```")
-    else:
-        await ctx.send("❌ No data found. Upload an image to start tracking.")
+# MOTHBALLED: mydata moved to mothballed_commands.py
 
-@bot.command(help="Show the leaderboard with the highest wave and coins per user.")
-async def leaderboard(ctx):
-    """Shows a leaderboard of all users, displaying the tier with the highest wave and the tier with the highest coins for each user."""
-    session = get_db_session()
-    try:
-        users = session.query(UserData).all()
-        header = ["Player", "Tier(s) with Highest Wave and Coins"]
-        lines = [" | ".join(header)]
-        lines.append("-" * 70)
-        for user in users:
-            name = user.discordname
-            tiers = [getattr(user, f"T{i+1}") for i in range(18)]
-            max_wave = -1
-            max_coins = -1
-            wave_idx = -1
-            coins_idx = -1
-            for i, t in enumerate(tiers):
-                if not t:
-                    continue
-                wave, coins = parse_wave_coins(t)
-                if wave > max_wave:
-                    max_wave = wave
-                    wave_idx = i
-                if coins > max_coins:
-                    max_coins = coins
-                    coins_idx = i
-            if wave_idx == -1:
-                wave_idx = 0
-                max_wave = 0
-            if coins_idx == -1:
-                coins_idx = 0
-                max_coins = 0
-            wave_str = f"T{wave_idx + 1} Wave: {max_wave}"
-            coins_str = f"T{coins_idx + 1} Coins: {tiers[coins_idx].split('Coins: ')[1]}" if tiers[coins_idx] and tiers[coins_idx].count("Coins: ") > 0 else f"T{coins_idx + 1} Coins: 0"
-            line = f"{name} | Highest wave: {wave_str} ; Highest coins: {coins_str}"
-            lines.append(line)
-            if len(lines) > 12:
-                break
-        response = "\n".join(lines)
-        await ctx.send(f"🏆 **Leaderboard**\n```\n{response}```")
-    except Exception as e:
-        await ctx.send(f"❌ Error retrieving leaderboard: {e}")
-    finally:
-        session.close()
+# MOTHBALLED: leaderboard moved to mothballed_commands.py
 
-@bot.command(help="Show all users and their highest wave for each tier.")
-async def leaderwaves(ctx):
-    """Shows all users and their highest wave for each tier."""
-    session = get_db_session()
-    try:
-        users = session.query(UserData).all()
-        header = ["Player", "Waves per Tier"]
-        lines = [" | ".join(header)]
-        lines.append("-" * 70)
-        for user in users:
-            name = user.discordname
-            tiers = [getattr(user, f"T{i+1}") for i in range(18)]
-            waves_list = []
-            for i, t in enumerate(tiers):
-                if t:
-                    wave, _ = parse_wave_coins(t)
-                    if wave > 0:
-                        waves_list.append(f"T{i+1}: {wave}")
-            if not waves_list:
-                waves_list.append("No waves recorded")
-            waves_str = " ; ".join(waves_list)
-            line = f"{name} | {waves_str}"
-            lines.append(line)
-            if len(lines) > 12:
-                break
-        leaderboard_text = "\n".join(lines)
-        await ctx.send(f"📊 Leaderwaves:\n```\n{leaderboard_text}```")
-    except Exception as e:
-        await ctx.send(f"❌ Error retrieving leaderwaves: {e}")
-    finally:
-        session.close()
+# MOTHBALLED: leaderwaves moved to mothballed_commands.py
 
 def format_number_suffix(num: float) -> str:
     """Format a number with a suffix (K, M, B, T, Q) and one decimal if needed."""
@@ -279,79 +214,11 @@ def format_number_suffix(num: float) -> str:
     else:
         return str(int(num))
 
-@bot.command(help="Show all users and their highest coins for each tier.")
-async def leadercoins(ctx):
-    """Shows all users and their highest coins for each tier in a readable, suffixed format."""
-    session = get_db_session()
-    try:
-        users = session.query(UserData).all()
-        header = ["Player", "Coins per Tier"]
-        lines = [" | ".join(header)]
-        lines.append("-" * 70)
-        for user in users:
-            name = user.discordname
-            tiers = [getattr(user, f"T{i+1}") for i in range(18)]
-            coins_list = []
-            for i, t in enumerate(tiers):
-                if t:
-                    _, coins = parse_wave_coins(t)
-                    if coins > 0:
-                        coins_str = format_number_suffix(coins)
-                        coins_list.append(f"T{i+1}: {coins_str}")
-            if not coins_list:
-                coins_list.append("No coins recorded")
-            coins_str = " ; ".join(coins_list)
-            line = f"{name} | {coins_str}"
-            lines.append(line)
-            if len(lines) > 12:
-                break
-        leaderboard_text = "\n".join(lines)
-        await ctx.send(f"📊 Leadercoins:\n```\n{leaderboard_text}```")
-    except Exception as e:
-        await ctx.send(f"❌ Error retrieving leadercoins: {e}")
-    finally:
-        session.close()
+# MOTHBALLED: leadercoins moved to mothballed_commands.py
 
-@bot.command(name="leadertier", help="Show the top 5 users for a specific tier, ranked by wave. Usage: !leadertier t1")
-async def leadertier(ctx, tier: str):
-    """Shows the top 5 users for a specific tier, ranked by wave, including their coin count."""
-    match = re.match(r"t(\d+)", tier.lower())
-    if not match:
-        await ctx.send("❌ Invalid tier format. Use e.g. `t1`, `t2`, etc.")
-        return
-    tier_num = int(match.group(1))
-    if not (1 <= tier_num <= 18):
-        await ctx.send("❌ Tier number must be between 1 and 18.")
-        return
-    
-    session = get_db_session()
-    try:
-        users = session.query(UserData).all()
-        results = []
-        for user in users:
-            tier_str = getattr(user, f"T{tier_num}")
-            if tier_str:
-                wave, coins = parse_wave_coins(tier_str)
-                if wave > 0:
-                    results.append((user.discordname, wave, coins))
-        results.sort(key=lambda x: x[1], reverse=True)
-        top5 = results[:5]
-        header = f"Top 5 Players for Tier {tier_num} by Wave"
-        lines = [header, "-" * len(header)]
-        for name, wave, coins in top5:
-            coins_str = format_number_suffix(coins)
-            lines.append(f"{name} Wave: {wave} | Coins: {coins_str}")
-        leaderboard_text = "\n".join(lines)
-        await ctx.send(f"📊 {header}:\n```\n{leaderboard_text}```")
-    except Exception as e:
-        await ctx.send(f"❌ Error retrieving tier leaderboard: {e}")
-    finally:
-        session.close()
+# MOTHBALLED: leadertier moved to mothballed_commands.py
 
-@leadertier.error
-async def leadertier_error(ctx, error):
-    if isinstance(error, commands.MissingRequiredArgument):
-        await ctx.send("❌ Please specify a tier, e.g. `!leadertier t1`")
+# MOTHBALLED: leadertier_error moved to mothballed_commands.py
 
 @bot.command(help="Show all current and historical user data.")
 async def showdata(ctx):
@@ -467,99 +334,67 @@ async def listbotadmins(ctx):
 
 @bot.command(name="upload", help="Upload any game screenshot (stats or tier) - AI will auto-detect the type.")
 async def upload(ctx):
-    """Process uploaded game screenshots using AI to auto-detect type.
-    
-    Supports both stats screenshots and tier screenshots.
-    Uses Gemini AI to extract data and saves to appropriate database table.
+    """Process uploaded game screenshots concurrently using background tasks.
+
+    Supports both stats screenshots and tier screenshots. Uses Gemini AI to extract
+    data and saves to the appropriate database table. Heavy work is offloaded to
+    threads to keep the bot responsive. A per-user lock prevents races if the
+    same user uploads multiple images simultaneously.
     """
     if not ctx.message.attachments:
         await ctx.send("Please attach a screenshot of your game data (stats or tier).")
         return
     
     attachment = ctx.message.attachments[0]
-    
-    # Send initial processing message
     processing_msg = await ctx.send("🔄 Processing image... Please wait.")
-    
-    try:
-        # Process image with Gemini AI for auto-detection
-        gemini_result = process_image(attachment.url)
-        
-        if not gemini_result["success"]:
-            await processing_msg.edit(content=f"❌ Failed to process image: {gemini_result.get('error', 'Unknown error')}")
-            return
-        
-        # Save to database using appropriate parser based on detected type
-        sql_result = process_gemini_result(gemini_result, str(ctx.author.id), str(ctx.author))
-        
-        if sql_result["success"]:
-            # Format response based on image type
-            if gemini_result["image_type"] == "stats":
-                stats_id = sql_result.get('stats_id', 'N/A')
-                improvements = sql_result.get('improvements', [])
-                improvement_text = f"\n📈 Improvements: {', '.join(improvements)}" if improvements else "\n📊 Status: No significant improvements detected"
-                await processing_msg.edit(content=f"✅ Stats saved. ID: {stats_id}{improvement_text}")
-            elif gemini_result["image_type"] == "tier":
-                tier_data = sql_result.get("tier_data", {})
-                tiers_updated = tier_data.get("tiers_updated", 0)
-                improvements = tier_data.get("improvements", [])
-                skipped = tier_data.get("skipped", [])
-                improvement_text = f"\n🏆 Improved Tiers: {', '.join(improvements)}" if improvements else "\n⚠️ No improvements found"
-                skipped_text = f"\n⏭️ Skipped (no improvement): {', '.join(skipped)}" if skipped else ""
-                await processing_msg.edit(content=f"✅ Tier data processed.{improvement_text}{skipped_text}")
-            else:
-                await processing_msg.edit(content="❌ Invalid image. Please upload either a stats screenshot or a tier screenshot.")
-        else:
-            await processing_msg.edit(content=f"❌ **Database Error:** {sql_result['message']}")
-            
-    except Exception as e:
-        await processing_msg.edit(content=f"❌ **Processing Error:** {str(e)}\n\nPlease make sure you uploaded a clear game screenshot.")
 
-@bot.command(name="uploadwaves", help="Upload your tier screenshot to save your waves/coins data.")
-async def uploadwaves(ctx):
-    if not ctx.message.attachments:
-        await ctx.send("Please attach a screenshot of your tier data.")
-        return
-    
-    attachment = ctx.message.attachments[0]
-    
-    # Send initial processing message
-    processing_msg = await ctx.send("🔄 Processing tier image... Please wait.")
-    
-    try:
-        # Process image with Gemini, force tier classification for this command
-        gemini_result = process_image(attachment.url, force_type="tier")
-        
-        if not gemini_result["success"]:
-            await processing_msg.edit(content=f"❌ Failed to process image: {gemini_result.get('error', 'Unknown error')}")
-            return
-        
-        # Check if it's actually a tier image
-        if gemini_result["image_type"] != "tier":
-            await processing_msg.edit(content="❌ This doesn't appear to be a tier screenshot. Please upload a tier image that contains tier progress data with 'Tier 1', 'Tier 2', etc.")
-            return
-        
-        # Proceed without exposing or gating on AI confidence
-        
-        # Save to database using our SQL parser
-        sql_result = process_gemini_result(gemini_result, str(ctx.author.id), str(ctx.author))
-        
-        if sql_result["success"]:
-            tier_data = sql_result.get("tier_data", {})
-            tiers_updated = tier_data.get("tiers_updated", 0)
-            improvements = tier_data.get("improvements", [])
-            skipped = tier_data.get("skipped", [])
-            improvement_text = f"\n🏆 Improved Tiers: {', '.join(improvements)}" if improvements else "\n⚠️ No improvements found"
-            skipped_text = f"\n⏭️ Skipped (no improvement): {', '.join(skipped)}" if skipped else ""
-            await processing_msg.edit(content=f"✅ Tier data processed.{improvement_text}{skipped_text}")
-        else:
-            await processing_msg.edit(content=f"❌ **Database Error:** {sql_result['message']}")
-            
-    except Exception as e:
-        await processing_msg.edit(content=f"❌ **Processing Error:** {str(e)}\n\nPlease make sure you uploaded a clear tier screenshot.")
+    async def process_upload_task():
+        try:
+            # Run CPU/IO-heavy image handling in a background thread
+            gemini_result = await async_process_image(attachment.url)
+
+            if not gemini_result.get("success"):
+                await processing_msg.edit(content=f"❌ Failed to process image: {gemini_result.get('error', 'Unknown error')}")
+                return
+
+            # Per-user lock prevents concurrent writes racing for the same user
+            lock = get_user_lock(str(ctx.author.id))
+            async with lock:
+                sql_result = await async_process_gemini_result(
+                    gemini_result,
+                    str(ctx.author.id),
+                    str(ctx.author)
+                )
+
+            if sql_result.get("success"):
+                if gemini_result.get("image_type") == "stats":
+                    stats_id = sql_result.get('stats_id', 'N/A')
+                    improvements = sql_result.get('improvements', [])
+                    improvement_text = f"\n📈 Improvements: {', '.join(improvements)}" if improvements else "\n📊 Status: No significant improvements detected"
+                    await processing_msg.edit(content=f"✅ Stats saved. ID: {stats_id}{improvement_text}")
+                elif gemini_result.get("image_type") == "tier":
+                    tier_data = sql_result.get("tier_data", {})
+                    improvements = tier_data.get("improvements", [])
+                    skipped = tier_data.get("skipped", [])
+                    improvement_text = f"\n🏆 Improved Tiers: {', '.join(improvements)}" if improvements else "\n⚠️ No improvements found"
+                    skipped_text = f"\n⏭️ Skipped (no improvement): {', '.join(skipped)}" if skipped else ""
+                    await processing_msg.edit(content=f"✅ Tier data processed.{improvement_text}{skipped_text}")
+                else:
+                    await processing_msg.edit(content="❌ Invalid image. Please upload either a stats screenshot or a tier screenshot.")
+            else:
+                await processing_msg.edit(content=f"❌ **Database Error:** {sql_result.get('message', 'Unknown error')}")
+
+        except Exception as e:
+            # Ensure other uploads continue even if this one fails
+            await processing_msg.edit(content=f"❌ **Processing Error:** {str(e)}\n\nPlease make sure you uploaded a clear game screenshot.")
+
+    # Fire-and-forget to avoid blocking this command on processing
+    asyncio.create_task(process_upload_task())
+
+## MOTHBALLED: uploadwaves moved to mothballed_commands.py
 
 async def main():
-    await bot.load_extension("cogs.stats_cog")
+    # await bot.load_extension("cogs.stats_cog")  # Mothballed while building new commands
     await bot.start(TOKEN)
 
 if __name__ == "__main__":
