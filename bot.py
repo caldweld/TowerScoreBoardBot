@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from discord.ext import commands
 from sqlalchemy.orm import Session
 from dashboard_backend.database import SessionLocal
-from dashboard_backend.models import UserData, UserDataHistory, BotAdmin
+from dashboard_backend.models import UserData, UserDataHistory, BotAdmin, UserStats
 from gemini_processor import process_image
 from gemini_sql_parser import process_gemini_result
 
@@ -45,6 +45,14 @@ class UploadOnlyHelp(commands.MinimalHelpCommand):
                 "`!leadercoins` — Top 10 highest coins per user (shows tier)\n"
                 "`!leaderwaves` — Top 10 highest wave per user (shows tier)\n"
                 "`!leadertier` — Top 10 for a specific tier: `!leadertier t13`"
+            ),
+            inline=False
+        )
+        embed.add_field(
+            name="My Data",
+            value=(
+                "`!mystats` — Show your most recent saved stats\n"
+                "`!mytiers` — Show all your tiers (T1..T18) with Waves and Coins"
             ),
             inline=False
         )
@@ -619,6 +627,77 @@ async def leader(ctx):
         await ctx.send(f"🏆 Leader — Overall by Highest Tier:\n```\n{leaderboard_text}```")
     except Exception as e:
         await ctx.send(f"❌ Error retrieving leader: {e}")
+    finally:
+        session.close()
+
+@bot.command(name="mystats", help="Show your most recent saved stats.")
+async def mystats(ctx):
+    """Display the caller's most recently saved stats record in a compact list."""
+    session = get_db_session()
+    try:
+        stats = session.query(UserStats).filter(UserStats.discordid == str(ctx.author.id)).order_by(UserStats.timestamp.desc()).first()
+        if not stats:
+            await ctx.send("❌ No stats found. Use !upload with a stats screenshot to save your stats.")
+            return
+
+        fields = [
+            ("Game Started", stats.game_started),
+            ("Coins Earned", stats.coins_earned),
+            ("Cash Earned", stats.cash_earned),
+            ("Stones Earned", stats.stones_earned),
+            ("Damage Dealt", stats.damage_dealt),
+            ("Enemies Destroyed", stats.enemies_destroyed),
+            ("Waves Completed", stats.waves_completed),
+            ("Upgrades Bought", stats.upgrades_bought),
+            ("Workshop Upgrades", stats.workshop_upgrades),
+            ("Workshop Coins Spent", stats.workshop_coins_spent),
+            ("Research Completed", stats.research_completed),
+            ("Lab Coins Spent", stats.lab_coins_spent),
+            ("Free Upgrades", stats.free_upgrades),
+            ("Interest Earned", stats.interest_earned),
+            ("Orb Kills", stats.orb_kills),
+            ("Death Ray Kills", stats.death_ray_kills),
+            ("Thorn Damage", stats.thorn_damage),
+            ("Waves Skipped", stats.waves_skipped),
+        ]
+
+        lines = ["📊 Your Most Recent Stats:"]
+        for label, value in fields:
+            if value is not None and value != "":
+                lines.append(f"**{label}:** {value}")
+        await ctx.send("\n".join(lines))
+    except Exception as e:
+        await ctx.send(f"❌ Error retrieving your stats: {e}")
+    finally:
+        session.close()
+
+@bot.command(name="mytiers", help="Show your saved tiers in a compact list with waves and coins.")
+async def mytiers(ctx):
+    """Display all T1..T18 for the caller in a compact, readable block."""
+    session = get_db_session()
+    try:
+        user = session.query(UserData).filter(UserData.discordid == str(ctx.author.id)).first()
+        if not user:
+            await ctx.send("❌ No tier data found. Use !upload with a tier screenshot to save your tiers.")
+            return
+
+        header = "Tier | Wave | Coins"
+        lines = [header, "-" * len(header)]
+        for i in range(1, 19):
+            t = getattr(user, f"T{i}")
+            if not t:
+                wave = 0
+                coins_disp = "0"
+            else:
+                wave, _coins_num = parse_wave_coins(t)
+                m = re.search(r"Coins:\s*(\S+)", t)
+                coins_disp = m.group(1) if m else "0"
+            lines.append(f"T{i} | {wave} | {coins_disp}")
+
+        block = "\n".join(lines)
+        await ctx.send(f"🗂️ Your Tiers:\n```\n{block}```")
+    except Exception as e:
+        await ctx.send(f"❌ Error retrieving your tiers: {e}")
     finally:
         session.close()
 
