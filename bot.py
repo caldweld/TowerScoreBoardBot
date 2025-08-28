@@ -44,7 +44,8 @@ class UploadOnlyHelp(commands.MinimalHelpCommand):
                 "`!leader` — Overall ranking by highest tier achieved (shows wave/coins)\n"
                 "`!leadercoins` — Top 10 highest coins per user (shows tier)\n"
                 "`!leaderwaves` — Top 10 highest wave per user (shows tier)\n"
-                "`!leadertier` — Top 10 for a specific tier: `!leadertier t13`"
+                "`!leadertier` — Top 10 for a specific tier: `!leadertier t13`\n"
+                "`!leaderstats` — Top 10 for any stats category: `!leaderstats waves`"
             ),
             inline=False
         )
@@ -627,6 +628,106 @@ async def leader(ctx):
         await ctx.send(f"🏆 Leader — Overall by Highest Tier:\n```\n{leaderboard_text}```")
     except Exception as e:
         await ctx.send(f"❌ Error retrieving leader: {e}")
+    finally:
+        session.close()
+
+@bot.command(name="leaderstats", help="Show top players for a specific stats category (e.g., !leaderstats waves).")
+async def leaderstats(ctx, category: str):
+    """Display the top 10 players for a specific stats category."""
+    session = get_db_session()
+    try:
+        # Map category aliases to database column names
+        category_map = {
+            "gamestarted": "game_started",
+            "ltcoin": "coins_earned", 
+            "ltcash": "cash_earned",
+            "ltstones": "stones_earned",
+            "damage": "damage_dealt",
+            "destroyed": "enemies_destroyed",
+            "waves": "waves_completed",
+            "upgrades": "upgrades_bought",
+            "workshopups": "workshop_upgrades",
+            "workshopspent": "workshop_coins_spent",
+            "research": "research_completed",
+            "labcoins": "lab_coins_spent",
+            "freeups": "free_upgrades",
+            "interest": "interest_earned",
+            "orbs": "orb_kills",
+            "deathray": "death_ray_kills",
+            "thorns": "thorn_damage",
+            "skipped": "waves_skipped"
+        }
+        
+        # Map category aliases to display names
+        display_names = {
+            "gamestarted": "Game Started",
+            "ltcoin": "Coins Earned",
+            "ltcash": "Cash Earned", 
+            "ltstones": "Stones Earned",
+            "damage": "Damage Dealt",
+            "destroyed": "Enemies Destroyed",
+            "waves": "Waves Completed",
+            "upgrades": "Upgrades Bought",
+            "workshopups": "Workshop Upgrades",
+            "workshopspent": "Workshop Coins Spent",
+            "research": "Research Completed",
+            "labcoins": "Lab Coins Spent",
+            "freeups": "Free Upgrades",
+            "interest": "Interest Earned",
+            "orbs": "Orb Kills",
+            "deathray": "Death Ray Kills",
+            "thorns": "Thorn Damage",
+            "skipped": "Waves Skipped"
+        }
+        
+        category_lower = category.lower()
+        if category_lower not in category_map:
+            valid_categories = ", ".join(category_map.keys())
+            await ctx.send(f"❌ Invalid category. Valid categories: {valid_categories}")
+            return
+            
+        db_column = category_map[category_lower]
+        display_name = display_names[category_lower]
+        
+        # Get the most recent stats for each user and sort by the specified category
+        # We need to use a subquery to get the latest stats per user
+        from sqlalchemy import func, desc
+        
+        # Subquery to get the latest timestamp for each user
+        latest_stats = session.query(
+            UserStats.discordid,
+            func.max(UserStats.timestamp).label('latest_timestamp')
+        ).group_by(UserStats.discordid).subquery()
+        
+        # Main query to get the latest stats for each user
+        results = session.query(
+            UserStats.discordname,
+            getattr(UserStats, db_column)
+        ).join(
+            latest_stats,
+            (UserStats.discordid == latest_stats.c.discordid) & 
+            (UserStats.timestamp == latest_stats.c.latest_timestamp)
+        ).filter(
+            getattr(UserStats, db_column).isnot(None),
+            getattr(UserStats, db_column) != ""
+        ).order_by(
+            desc(getattr(UserStats, db_column))
+        ).limit(10).all()
+        
+        if not results:
+            await ctx.send(f"❌ No data found for {display_name}")
+            return
+            
+        header = "Rank | Player | Value"
+        lines = [header, "-" * len(header)]
+        for rank, (name, value) in enumerate(results, 1):
+            lines.append(f"{rank} | {name} | {value}")
+            
+        leaderboard_text = "\n".join(lines)
+        await ctx.send(f"📊 Leaderstats {display_name} (Top 10):\n```\n{leaderboard_text}```")
+        
+    except Exception as e:
+        await ctx.send(f"❌ Error retrieving leaderstats: {e}")
     finally:
         session.close()
 
