@@ -21,6 +21,7 @@ if TOKEN is None:
 # Set up intents
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True  # Need this to access member information for display name updates
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 class UploadOnlyHelp(commands.MinimalHelpCommand):
@@ -96,6 +97,100 @@ def get_db_session():
         Session: A new SQLAlchemy database session instance.
     """
     return SessionLocal()
+
+
+def get_best_display_name(member):
+    """Get the best display name for a Discord member.
+    
+    Priority: Server nickname → Custom display name → Username
+    
+    Args:
+        member: Discord member object
+        
+    Returns:
+        str: Best available display name
+    """
+    if member.nick:  # Server nickname
+        return member.nick
+    elif member.display_name != member.name:  # Custom display name
+        return member.display_name
+    else:  # Fallback to username
+        return member.name
+
+
+async def update_all_display_names():
+    """Update display names for all users in the database on bot startup."""
+    print("🔄 Updating display names for all users...")
+    
+    session = get_db_session()
+    try:
+        # Get all unique Discord IDs from the database
+        user_stats_ids = session.query(UserStats.discordid).distinct().all()
+        user_data_ids = session.query(UserData.discordid).distinct().all()
+        
+        all_ids = set([id[0] for id in user_stats_ids + user_data_ids])
+        
+        if not all_ids:
+            print("📊 No users found in database")
+            return
+            
+        print(f"📊 Found {len(all_ids)} unique users in database")
+        
+        updated_count = 0
+        not_found_count = 0
+        
+        # Get the first guild (server) the bot is in
+        guild = bot.guilds[0] if bot.guilds else None
+        if not guild:
+            print("❌ Bot is not in any guilds, skipping display name updates")
+            return
+        
+        for discord_id in all_ids:
+            try:
+                # Try to get the member from the guild
+                member = await guild.fetch_member(int(discord_id))
+                if member:
+                    new_name = get_best_display_name(member)
+                    
+                    # Update UserStats
+                    stats_updated = session.query(UserStats).filter(
+                        UserStats.discordid == discord_id
+                    ).update({"discordname": new_name})
+                    
+                    # Update UserData
+                    data_updated = session.query(UserData).filter(
+                        UserData.discordid == discord_id
+                    ).update({"discordname": new_name})
+                    
+                    # Update UserDataHistory
+                    history_updated = session.query(UserDataHistory).filter(
+                        UserDataHistory.discordid == discord_id
+                    ).update({"discordname": new_name})
+                    
+                    if stats_updated > 0 or data_updated > 0 or history_updated > 0:
+                        updated_count += 1
+                        
+                else:
+                    not_found_count += 1
+                    
+            except discord.NotFound:
+                not_found_count += 1
+            except Exception as e:
+                print(f"❌ Error updating {discord_id}: {e}")
+                not_found_count += 1
+        
+        # Commit all changes
+        session.commit()
+        
+        print(f"✅ Display names updated: {updated_count} users")
+        if not_found_count > 0:
+            print(f"⚠️  {not_found_count} users not found in guild")
+        
+    except Exception as e:
+        session.rollback()
+        print(f"❌ Error updating display names: {e}")
+    finally:
+        session.close()
 
 
 def parse_wave_coins(tier_str):
@@ -226,6 +321,10 @@ async def on_ready():
     print(f"✅ Bot is online as {bot.user}")
     print(f"🤖 Gemini AI integration active")
     print(f"📊 Database connection established")
+    
+    # Update display names for all users in database
+    await update_all_display_names()
+    
     print(f"🎯 Ready to process game screenshots!")
 
 # MOTHBALLED: commands_list moved to mothballed_commands.py
@@ -398,10 +497,12 @@ async def upload(ctx):
             # Per-user lock prevents concurrent writes racing for the same user
             lock = get_user_lock(str(ctx.author.id))
             async with lock:
+                # Get the best display name for the user
+                best_name = get_best_display_name(ctx.author)
                 sql_result = await async_process_gemini_result(
                     gemini_result,
                     str(ctx.author.id),
-                    str(ctx.author)
+                    best_name
                 )
 
             if sql_result.get("success"):
