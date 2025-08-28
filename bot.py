@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from dashboard_backend.database import SessionLocal
 from dashboard_backend.models import UserData, UserDataHistory, BotAdmin, UserStats
 from gemini_processor import process_image
-from gemini_sql_parser import process_gemini_result
+from gemini_sql_parser import process_gemini_result, parse_numeric_value
 
 load_dotenv()
 
