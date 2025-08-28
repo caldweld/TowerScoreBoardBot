@@ -139,54 +139,59 @@ async def update_all_display_names():
         updated_count = 0
         not_found_count = 0
         
-        # Get the first guild (server) the bot is in
-        guild = bot.guilds[0] if bot.guilds else None
-        if not guild:
+        # Check all guilds the bot is in
+        if not bot.guilds:
             print("❌ Bot is not in any guilds, skipping display name updates")
             return
         
-        print(f"📋 Using guild: {guild.name} (ID: {guild.id})")
-        print(f"👥 Guild member count: {guild.member_count}")
+        print(f"📋 Bot is in {len(bot.guilds)} guild(s)")
+        for guild in bot.guilds:
+            print(f"  - {guild.name} (ID: {guild.id}) - {guild.member_count} members")
         
         for discord_id in all_ids:
-            try:
-                # Try to get the member from the guild
-                member = await guild.fetch_member(int(discord_id))
-                if member:
-                    new_name = get_best_display_name(member)
-                    print(f"🔄 Processing {discord_id}: {new_name}")
-                    
-                    # Update UserStats
-                    stats_updated = session.query(UserStats).filter(
-                        UserStats.discordid == discord_id
-                    ).update({"discordname": new_name})
-                    
-                    # Update UserData
-                    data_updated = session.query(UserData).filter(
-                        UserData.discordid == discord_id
-                    ).update({"discordname": new_name})
-                    
-                    # Update UserDataHistory
-                    history_updated = session.query(UserDataHistory).filter(
-                        UserDataHistory.discordid == discord_id
-                    ).update({"discordname": new_name})
-                    
-                    if stats_updated > 0 or data_updated > 0 or history_updated > 0:
-                        updated_count += 1
-                        print(f"✅ Updated {discord_id}: {new_name} (stats:{stats_updated}, data:{data_updated}, history:{history_updated})")
-                    else:
-                        print(f"⚠️  No records found for {discord_id}")
-                        
+            member = None
+            found_guild = None
+            
+            # Try to find the member in any guild
+            for guild in bot.guilds:
+                try:
+                    member = await guild.fetch_member(int(discord_id))
+                    if member:
+                        found_guild = guild
+                        break
+                except discord.NotFound:
+                    continue
+                except Exception as e:
+                    print(f"⚠️  Error checking {discord_id} in {guild.name}: {e}")
+                    continue
+            
+            if member:
+                new_name = get_best_display_name(member)
+                print(f"🔄 Processing {discord_id}: {new_name} (found in {found_guild.name})")
+                
+                # Update UserStats
+                stats_updated = session.query(UserStats).filter(
+                    UserStats.discordid == discord_id
+                ).update({"discordname": new_name})
+                
+                # Update UserData
+                data_updated = session.query(UserData).filter(
+                    UserData.discordid == discord_id
+                ).update({"discordname": new_name})
+                
+                # Update UserDataHistory
+                history_updated = session.query(UserDataHistory).filter(
+                    UserDataHistory.discordid == discord_id
+                ).update({"discordname": new_name})
+                
+                if stats_updated > 0 or data_updated > 0 or history_updated > 0:
+                    updated_count += 1
+                    print(f"✅ Updated {discord_id}: {new_name} (stats:{stats_updated}, data:{data_updated}, history:{history_updated})")
                 else:
-                    not_found_count += 1
-                    print(f"❌ Member not found: {discord_id}")
-                    
-            except discord.NotFound:
+                    print(f"⚠️  No records found for {discord_id}")
+            else:
                 not_found_count += 1
-                print(f"❌ Member not found in guild: {discord_id}")
-            except Exception as e:
-                print(f"❌ Error updating {discord_id}: {e}")
-                not_found_count += 1
+                print(f"❌ Member not found in any guild: {discord_id}")
         
         # Commit all changes
         session.commit()
