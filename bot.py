@@ -710,9 +710,18 @@ async def leaderstats(ctx, category: str):
         ).filter(
             getattr(UserStats, db_column).isnot(None),
             getattr(UserStats, db_column) != ""
-        ).order_by(
-            desc(getattr(UserStats, db_column))
-        ).limit(10).all()
+        ).all()
+        
+        # Sort results by numeric value (handling suffixes like K, M, B, T)
+        def parse_stat_value(value_str):
+            """Parse a stat value string to numeric value for sorting."""
+            if not value_str:
+                return 0.0
+            return parse_numeric_value(value_str)
+        
+        # Sort by numeric value descending
+        results.sort(key=lambda x: parse_stat_value(x[1]), reverse=True)
+        results = results[:10]  # Take top 10 after sorting
         
         if not results:
             await ctx.send(f"❌ No data found for {display_name}")
