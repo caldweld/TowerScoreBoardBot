@@ -12,7 +12,7 @@ load_dotenv()
 
 # Configure Gemini
 genai.configure(api_key=os.getenv('GOOGLE_API_KEY'))
-model = genai.GenerativeModel('gemini-1.5-pro')
+model = genai.GenerativeModel('gemini-1.5-pro-002')
 
 def download_image(image_url: str) -> Image.Image:
     """Download image from URL and return PIL Image object"""
